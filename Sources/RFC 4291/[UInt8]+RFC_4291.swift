@@ -84,10 +84,13 @@ extension [UInt8] {
             // Handle compression
             if shouldCompress && index >= longestZeroRun.start && index < longestZeroRun.start + longestZeroRun.length {
                 if index == longestZeroRun.start {
-                    // Start of compression
-                    if index == 0 {
-                        self.append(INCITS_4_1986.GraphicCharacters.colon)
-                    }
+                    // Output :: for compression
+                    // When index > 0: first colon is separator, second is start of ::
+                    //   fe80::1 → "fe80" + ":" + ":" + "1"
+                    // When index == 0: both colons are the ::
+                    //   ::1 → ":" + ":" + "1"
+                    //   :: → ":" + ":"
+                    self.append(INCITS_4_1986.GraphicCharacters.colon)
                     self.append(INCITS_4_1986.GraphicCharacters.colon)
                 }
                 continue
@@ -105,5 +108,6 @@ extension [UInt8] {
             let hexString = String(segment, radix: 16, uppercase: false)
             self.append(contentsOf: hexString.utf8)
         }
+
     }
 }
