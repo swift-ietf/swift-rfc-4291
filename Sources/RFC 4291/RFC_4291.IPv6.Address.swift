@@ -100,6 +100,229 @@ extension RFC_4291.IPv6 {
     }
 }
 
+// MARK: - UInt8.ASCII.Serializable
+
+extension RFC_4291.IPv6.Address: UInt8.ASCII.Serializable {
+    static public func serialize<Buffer>(
+        ascii address: RFC_4291.IPv6.Address,
+        into buffer: inout Buffer
+    ) where Buffer : RangeReplaceableCollection, Buffer.Element == UInt8 {
+        // Convert segments to array for easier processing
+        let segments = [
+            address.segments.0, address.segments.1, address.segments.2, address.segments.3,
+            address.segments.4, address.segments.5, address.segments.6, address.segments.7
+        ]
+
+        // Find longest run of consecutive zeros for compression (RFC 5952 Section 4.2.2)
+        var longestZeroRun: (start: Int, length: Int) = (0, 0)
+        var currentZeroRun: (start: Int, length: Int) = (0, 0)
+        var inZeroRun = false
+
+        for (index, segment) in segments.enumerated() {
+            if segment == 0 {
+                if !inZeroRun {
+                    currentZeroRun = (index, 1)
+                    inZeroRun = true
+                } else {
+                    currentZeroRun.length += 1
+                }
+
+                if currentZeroRun.length > longestZeroRun.length {
+                    longestZeroRun = currentZeroRun
+                }
+            } else {
+                inZeroRun = false
+            }
+        }
+
+        // Only compress if we have at least 2 consecutive zeros
+        let shouldCompress = longestZeroRun.length >= 2
+
+        buffer.reserveCapacity(39) // Max length: 8 segments * 4 hex + 7 colons
+
+        for (index, segment) in segments.enumerated() {
+            // Handle compression
+            if shouldCompress && index >= longestZeroRun.start && index < longestZeroRun.start + longestZeroRun.length {
+                if index == longestZeroRun.start {
+                    // Output :: for compression
+                    // When index > 0: first colon is separator, second is start of ::
+                    //   fe80::1 → "fe80" + ":" + ":" + "1"
+                    // When index == 0: both colons are the ::
+                    //   ::1 → ":" + ":" + "1"
+                    //   :: → ":" + ":"
+                    buffer.append(.ascii.colon)
+                    buffer.append(.ascii.colon)
+                }
+                continue
+            }
+
+            // Add colon separator (except before first segment and after ::)
+            if index > 0 {
+                let afterCompression = shouldCompress && index == longestZeroRun.start + longestZeroRun.length
+                if !afterCompression {
+                    buffer.append(.ascii.colon)
+                }
+            }
+
+            // Convert segment to hex (lowercase, no leading zeros per RFC 5952)
+            let hexString = String(segment, radix: 16, uppercase: false)
+            buffer.append(contentsOf: hexString.utf8)
+        }
+    }
+
+    /// Creates an IPv6 address from ASCII bytes
+    ///
+    /// Parses IPv6 addresses in the text representation format defined by RFC 4291 Section 2.2
+    /// and RFC 5952 (canonical representation).
+    ///
+    /// ## Category Theory
+    ///
+    /// Parsing transformation:
+    /// - **Domain**: [UInt8] (ASCII bytes)
+    /// - **Codomain**: RFC_4291.IPv6.Address (structured data)
+    ///
+    /// String parsing is derived composition:
+    /// ```
+    /// String → [UInt8] (UTF-8) → Address
+    /// ```
+    ///
+    /// ## Format
+    ///
+    /// IPv6 addresses are represented as eight 16-bit hexadecimal segments separated by colons:
+    /// - Full form: `2001:0db8:0000:0000:0000:0000:0000:0001`
+    /// - Compressed form: `2001:db8::1` (using `::` to represent consecutive zero segments)
+    ///
+    /// ## Constraints
+    ///
+    /// Per RFC 4291 Section 2.2:
+    /// - Eight 16-bit segments separated by colons
+    /// - Each segment is 1-4 hexadecimal digits
+    /// - `::` may be used once to compress consecutive zero segments
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let addr = try RFC_4291.IPv6.Address(ascii: "2001:db8::1".utf8, in: ())
+    /// ```
+    public init<Bytes: Collection>(ascii bytes: Bytes, in context: Context) throws(Error)
+    where Bytes.Element == UInt8 {
+        guard !bytes.isEmpty else { throw Error.empty }
+
+        let input = String(decoding: bytes, as: UTF8.self)
+
+        // Check for :: compression
+        var compressionIndex: Int? = nil
+        var searchIndex = bytes.startIndex
+        var colonCount = 0
+
+        while searchIndex < bytes.endIndex {
+            if bytes[searchIndex] == .ascii.colon {
+                colonCount += 1
+                if colonCount == 2 {
+                    // Found ::
+                    if compressionIndex != nil {
+                        throw Error.multipleCompressions(input)
+                    }
+                    compressionIndex = 0 // Will be calculated based on segments before ::
+                }
+            } else {
+                colonCount = 0
+            }
+            searchIndex = bytes.index(after: searchIndex)
+        }
+
+        // Split into parts by colon
+        var parts: [[UInt8]] = []
+        var currentStart = bytes.startIndex
+
+        for index in bytes.indices {
+            if bytes[index] == .ascii.colon {
+                if index > currentStart {
+                    parts.append(Array(bytes[currentStart..<index]))
+                } else if index == currentStart && compressionIndex != nil {
+                    // Empty part before or after ::
+                    parts.append([])
+                }
+                currentStart = bytes.index(after: index)
+            }
+        }
+
+        // Add final part if not ending with colon
+        if currentStart < bytes.endIndex {
+            parts.append(Array(bytes[currentStart...]))
+        }
+
+        // Parse segments
+        var segments: [UInt16] = []
+
+        for part in parts {
+            if part.isEmpty {
+                // This is where :: compression occurs
+                if compressionIndex == nil {
+                    compressionIndex = segments.count
+                }
+                continue
+            }
+
+            // Parse hex segment (1-4 digits)
+            if part.count > 4 {
+                throw Error.invalidSegment(String(decoding: part, as: UTF8.self))
+            }
+
+            var value: UInt16 = 0
+            for byte in part {
+                let digit: UInt16
+                if byte >= .ascii.`0` && byte <= .ascii.`9` {
+                    digit = UInt16(byte - .ascii.`0`)
+                } else if byte >= .ascii.A && byte <= .ascii.F {
+                    digit = UInt16(byte - .ascii.A + 10)
+                } else if byte >= .ascii.a && byte <= .ascii.f {
+                    digit = UInt16(byte - .ascii.a + 10)
+                } else {
+                    throw Error.invalidCharacter(input, byte: byte)
+                }
+                value = value * 16 + digit
+            }
+            segments.append(value)
+        }
+
+        // Handle compression
+        if let compIndex = compressionIndex {
+            let zerosNeeded = 8 - segments.count
+            if zerosNeeded < 0 {
+                throw Error.tooManySegments(input)
+            }
+
+            // Insert zeros at compression point
+            let before = segments[0..<compIndex]
+            let after = segments[compIndex...]
+            let zeros = Array(repeating: UInt16(0), count: zerosNeeded)
+            segments = Array(before) + zeros + Array(after)
+        }
+
+        // Validate we have exactly 8 segments
+        guard segments.count == 8 else {
+            if segments.count < 8 {
+                throw Error.tooFewSegments(input)
+            } else {
+                throw Error.tooManySegments(input)
+            }
+        }
+
+        self.init(
+            __unchecked: (),
+            segments[0], segments[1], segments[2], segments[3],
+            segments[4], segments[5], segments[6], segments[7]
+        )
+    }
+}
+
+
+// MARK: - Required Conformances
+
+extension RFC_4291.IPv6.Address: UInt8.ASCII.RawRepresentable {}
+extension RFC_4291.IPv6.Address: CustomStringConvertible {}
+
 // MARK: - Equatable & Hashable
 
 extension RFC_4291.IPv6.Address: Equatable {
@@ -127,6 +350,60 @@ extension RFC_4291.IPv6.Address: Hashable {
         hasher.combine(segments.7)
     }
 }
+
+// MARK: - Comparable
+
+extension RFC_4291.IPv6.Address: Comparable {
+    /// Compares two IPv6 addresses numerically
+    ///
+    /// Addresses are compared segment by segment from most to least significant.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let addr1 = RFC_4291.IPv6.Address(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)
+    /// let addr2 = RFC_4291.IPv6.Address(0x2001, 0xdb8, 0, 0, 0, 0, 0, 2)
+    /// if addr1 < addr2 {
+    ///     print("addr1 comes before addr2")
+    /// }
+    /// ```
+    public static func < (lhs: Self, rhs: Self) -> Bool {
+        // Compare segment by segment
+        if lhs.segments.0 != rhs.segments.0 { return lhs.segments.0 < rhs.segments.0 }
+        if lhs.segments.1 != rhs.segments.1 { return lhs.segments.1 < rhs.segments.1 }
+        if lhs.segments.2 != rhs.segments.2 { return lhs.segments.2 < rhs.segments.2 }
+        if lhs.segments.3 != rhs.segments.3 { return lhs.segments.3 < rhs.segments.3 }
+        if lhs.segments.4 != rhs.segments.4 { return lhs.segments.4 < rhs.segments.4 }
+        if lhs.segments.5 != rhs.segments.5 { return lhs.segments.5 < rhs.segments.5 }
+        if lhs.segments.6 != rhs.segments.6 { return lhs.segments.6 < rhs.segments.6 }
+        return lhs.segments.7 < rhs.segments.7
+    }
+}
+
+// MARK: - Codable
+
+extension RFC_4291.IPv6.Address: Codable {
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let string = try container.decode(String.self)
+        do {
+            try self.init(ascii: string.utf8, in: ())
+        } catch {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Invalid IPv6 address: \(error)"
+                )
+            )
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(self.description)
+    }
+}
+
 
 // MARK: - Address Types (RFC 4291 Section 2.4)
 
@@ -181,35 +458,6 @@ extension RFC_4291.IPv6.Address {
     }
 }
 
-// MARK: - Comparable
-
-extension RFC_4291.IPv6.Address: Comparable {
-    /// Compares two IPv6 addresses numerically
-    ///
-    /// Addresses are compared segment by segment from most to least significant.
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// let addr1 = RFC_4291.IPv6.Address(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)
-    /// let addr2 = RFC_4291.IPv6.Address(0x2001, 0xdb8, 0, 0, 0, 0, 0, 2)
-    /// if addr1 < addr2 {
-    ///     print("addr1 comes before addr2")
-    /// }
-    /// ```
-    public static func < (lhs: Self, rhs: Self) -> Bool {
-        // Compare segment by segment
-        if lhs.segments.0 != rhs.segments.0 { return lhs.segments.0 < rhs.segments.0 }
-        if lhs.segments.1 != rhs.segments.1 { return lhs.segments.1 < rhs.segments.1 }
-        if lhs.segments.2 != rhs.segments.2 { return lhs.segments.2 < rhs.segments.2 }
-        if lhs.segments.3 != rhs.segments.3 { return lhs.segments.3 < rhs.segments.3 }
-        if lhs.segments.4 != rhs.segments.4 { return lhs.segments.4 < rhs.segments.4 }
-        if lhs.segments.5 != rhs.segments.5 { return lhs.segments.5 < rhs.segments.5 }
-        if lhs.segments.6 != rhs.segments.6 { return lhs.segments.6 < rhs.segments.6 }
-        return lhs.segments.7 < rhs.segments.7
-    }
-}
-
 // MARK: - Well-Known Addresses
 
 extension RFC_4291.IPv6.Address {
@@ -224,184 +472,5 @@ extension RFC_4291.IPv6.Address {
     public static let loopback = Self(__unchecked: (), 0, 0, 0, 0, 0, 0, 0, 1)
 }
 
-// MARK: - UInt8.ASCII.Serializable
 
-extension RFC_4291.IPv6.Address: UInt8.ASCII.Serializable {
-    public typealias Context = Void
-    public static let serialize: @Sendable (Self) -> [UInt8] = [UInt8].init
 
-    /// Creates an IPv6 address from ASCII bytes
-    ///
-    /// Parses IPv6 addresses in the text representation format defined by RFC 4291 Section 2.2
-    /// and RFC 5952 (canonical representation).
-    ///
-    /// ## Category Theory
-    ///
-    /// Parsing transformation:
-    /// - **Domain**: [UInt8] (ASCII bytes)
-    /// - **Codomain**: RFC_4291.IPv6.Address (structured data)
-    ///
-    /// String parsing is derived composition:
-    /// ```
-    /// String → [UInt8] (UTF-8) → Address
-    /// ```
-    ///
-    /// ## Format
-    ///
-    /// IPv6 addresses are represented as eight 16-bit hexadecimal segments separated by colons:
-    /// - Full form: `2001:0db8:0000:0000:0000:0000:0000:0001`
-    /// - Compressed form: `2001:db8::1` (using `::` to represent consecutive zero segments)
-    ///
-    /// ## Constraints
-    ///
-    /// Per RFC 4291 Section 2.2:
-    /// - Eight 16-bit segments separated by colons
-    /// - Each segment is 1-4 hexadecimal digits
-    /// - `::` may be used once to compress consecutive zero segments
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// let addr = try RFC_4291.IPv6.Address(ascii: "2001:db8::1".utf8, in: ())
-    /// ```
-    public init<Bytes: Collection>(ascii bytes: Bytes, in context: Context) throws(Error)
-    where Bytes.Element == UInt8 {
-        guard !bytes.isEmpty else { throw Error.empty }
-
-        let input = String(decoding: bytes, as: UTF8.self)
-
-        // Check for :: compression
-        var compressionIndex: Int? = nil
-        var searchIndex = bytes.startIndex
-        var colonCount = 0
-
-        while searchIndex < bytes.endIndex {
-            if bytes[searchIndex] == INCITS_4_1986.GraphicCharacters.colon {
-                colonCount += 1
-                if colonCount == 2 {
-                    // Found ::
-                    if compressionIndex != nil {
-                        throw Error.multipleCompressions(input)
-                    }
-                    compressionIndex = 0 // Will be calculated based on segments before ::
-                }
-            } else {
-                colonCount = 0
-            }
-            searchIndex = bytes.index(after: searchIndex)
-        }
-
-        // Split into parts by colon
-        var parts: [[UInt8]] = []
-        var currentStart = bytes.startIndex
-
-        for index in bytes.indices {
-            if bytes[index] == INCITS_4_1986.GraphicCharacters.colon {
-                if index > currentStart {
-                    parts.append(Array(bytes[currentStart..<index]))
-                } else if index == currentStart && compressionIndex != nil {
-                    // Empty part before or after ::
-                    parts.append([])
-                }
-                currentStart = bytes.index(after: index)
-            }
-        }
-
-        // Add final part if not ending with colon
-        if currentStart < bytes.endIndex {
-            parts.append(Array(bytes[currentStart...]))
-        }
-
-        // Parse segments
-        var segments: [UInt16] = []
-
-        for part in parts {
-            if part.isEmpty {
-                // This is where :: compression occurs
-                if compressionIndex == nil {
-                    compressionIndex = segments.count
-                }
-                continue
-            }
-
-            // Parse hex segment (1-4 digits)
-            if part.count > 4 {
-                throw Error.invalidSegment(String(decoding: part, as: UTF8.self))
-            }
-
-            var value: UInt16 = 0
-            for byte in part {
-                let digit: UInt16
-                if byte >= INCITS_4_1986.GraphicCharacters.`0` && byte <= INCITS_4_1986.GraphicCharacters.`9` {
-                    digit = UInt16(byte - INCITS_4_1986.GraphicCharacters.`0`)
-                } else if byte >= INCITS_4_1986.GraphicCharacters.A && byte <= INCITS_4_1986.GraphicCharacters.F {
-                    digit = UInt16(byte - INCITS_4_1986.GraphicCharacters.A + 10)
-                } else if byte >= INCITS_4_1986.GraphicCharacters.a && byte <= INCITS_4_1986.GraphicCharacters.f {
-                    digit = UInt16(byte - INCITS_4_1986.GraphicCharacters.a + 10)
-                } else {
-                    throw Error.invalidCharacter(input, byte: byte)
-                }
-                value = value * 16 + digit
-            }
-            segments.append(value)
-        }
-
-        // Handle compression
-        if let compIndex = compressionIndex {
-            let zerosNeeded = 8 - segments.count
-            if zerosNeeded < 0 {
-                throw Error.tooManySegments(input)
-            }
-
-            // Insert zeros at compression point
-            let before = segments[0..<compIndex]
-            let after = segments[compIndex...]
-            let zeros = Array(repeating: UInt16(0), count: zerosNeeded)
-            segments = Array(before) + zeros + Array(after)
-        }
-
-        // Validate we have exactly 8 segments
-        guard segments.count == 8 else {
-            if segments.count < 8 {
-                throw Error.tooFewSegments(input)
-            } else {
-                throw Error.tooManySegments(input)
-            }
-        }
-
-        self.init(
-            __unchecked: (),
-            segments[0], segments[1], segments[2], segments[3],
-            segments[4], segments[5], segments[6], segments[7]
-        )
-    }
-}
-
-// MARK: - Required Conformances
-
-extension RFC_4291.IPv6.Address: UInt8.ASCII.RawRepresentable {}
-extension RFC_4291.IPv6.Address: CustomStringConvertible {}
-
-// MARK: - Codable
-
-extension RFC_4291.IPv6.Address: Codable {
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let string = try container.decode(String.self)
-        do {
-            try self.init(ascii: string.utf8, in: ())
-        } catch {
-            throw DecodingError.dataCorrupted(
-                DecodingError.Context(
-                    codingPath: decoder.codingPath,
-                    debugDescription: "Invalid IPv6 address: \(error)"
-                )
-            )
-        }
-    }
-
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(self.description)
-    }
-}
