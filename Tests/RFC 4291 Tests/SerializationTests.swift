@@ -1,4 +1,5 @@
 import Testing
+
 @testable import RFC_4291
 
 @Suite("IPv6 Address Serialization")
@@ -54,7 +55,16 @@ struct SerializationTests {
 
     @Test("Full address with no zeros should not compress")
     func testNoCompression() {
-        let addr = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0x1234, 0x5678, 0x9abc, 0xdef0, 0x1111, 0x2222)
+        let addr = RFC_4291.IPv6.Address(
+            0x2001,
+            0x0db8,
+            0x1234,
+            0x5678,
+            0x9abc,
+            0xdef0,
+            0x1111,
+            0x2222
+        )
         let bytes = [UInt8](addr)
         let result = String(decoding: bytes, as: UTF8.self)
         #expect(result == "2001:db8:1234:5678:9abc:def0:1111:2222")
@@ -111,7 +121,16 @@ struct SerializationTests {
 
     @Test("Hex digits should be lowercase")
     func testLowercaseHex() {
-        let addr = RFC_4291.IPv6.Address(0xABCD, 0xEF01, 0x2345, 0x6789, 0xABCD, 0xEF01, 0x2345, 0x6789)
+        let addr = RFC_4291.IPv6.Address(
+            0xABCD,
+            0xEF01,
+            0x2345,
+            0x6789,
+            0xABCD,
+            0xEF01,
+            0x2345,
+            0x6789
+        )
         let bytes = [UInt8](addr)
         let result = String(decoding: bytes, as: UTF8.self)
         #expect(result == "abcd:ef01:2345:6789:abcd:ef01:2345:6789")
@@ -121,7 +140,16 @@ struct SerializationTests {
 
     @Test("Leading zeros should be suppressed")
     func testLeadingZeroSuppression() {
-        let addr = RFC_4291.IPv6.Address(0x0001, 0x0020, 0x0300, 0x4000, 0x0001, 0x0020, 0x0300, 0x4000)
+        let addr = RFC_4291.IPv6.Address(
+            0x0001,
+            0x0020,
+            0x0300,
+            0x4000,
+            0x0001,
+            0x0020,
+            0x0300,
+            0x4000
+        )
         let bytes = [UInt8](addr)
         let result = String(decoding: bytes, as: UTF8.self)
         #expect(result == "1:20:300:4000:1:20:300:4000")

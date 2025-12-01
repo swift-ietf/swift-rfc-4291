@@ -78,8 +78,14 @@ extension RFC_4291.IPv6 {
         /// )
         /// ```
         public init(
-            _ s0: UInt16, _ s1: UInt16, _ s2: UInt16, _ s3: UInt16,
-            _ s4: UInt16, _ s5: UInt16, _ s6: UInt16, _ s7: UInt16
+            _ s0: UInt16,
+            _ s1: UInt16,
+            _ s2: UInt16,
+            _ s3: UInt16,
+            _ s4: UInt16,
+            _ s5: UInt16,
+            _ s6: UInt16,
+            _ s7: UInt16
         ) {
             self.segments = (s0, s1, s2, s3, s4, s5, s6, s7)
         }
@@ -92,8 +98,14 @@ extension RFC_4291.IPv6 {
         /// - Internal construction after validation
         init(
             __unchecked: Void,
-            _ s0: UInt16, _ s1: UInt16, _ s2: UInt16, _ s3: UInt16,
-            _ s4: UInt16, _ s5: UInt16, _ s6: UInt16, _ s7: UInt16
+            _ s0: UInt16,
+            _ s1: UInt16,
+            _ s2: UInt16,
+            _ s3: UInt16,
+            _ s4: UInt16,
+            _ s5: UInt16,
+            _ s6: UInt16,
+            _ s7: UInt16
         ) {
             self.segments = (s0, s1, s2, s3, s4, s5, s6, s7)
         }
@@ -106,11 +118,11 @@ extension RFC_4291.IPv6.Address: UInt8.ASCII.Serializable {
     static public func serialize<Buffer>(
         ascii address: RFC_4291.IPv6.Address,
         into buffer: inout Buffer
-    ) where Buffer : RangeReplaceableCollection, Buffer.Element == UInt8 {
+    ) where Buffer: RangeReplaceableCollection, Buffer.Element == UInt8 {
         // Convert segments to array for easier processing
         let segments = [
             address.segments.0, address.segments.1, address.segments.2, address.segments.3,
-            address.segments.4, address.segments.5, address.segments.6, address.segments.7
+            address.segments.4, address.segments.5, address.segments.6, address.segments.7,
         ]
 
         // Find longest run of consecutive zeros for compression (RFC 5952 Section 4.2.2)
@@ -138,11 +150,12 @@ extension RFC_4291.IPv6.Address: UInt8.ASCII.Serializable {
         // Only compress if we have at least 2 consecutive zeros
         let shouldCompress = longestZeroRun.length >= 2
 
-        buffer.reserveCapacity(39) // Max length: 8 segments * 4 hex + 7 colons
+        buffer.reserveCapacity(39)  // Max length: 8 segments * 4 hex + 7 colons
 
         for (index, segment) in segments.enumerated() {
             // Handle compression
-            if shouldCompress && index >= longestZeroRun.start && index < longestZeroRun.start + longestZeroRun.length {
+            if shouldCompress && index >= longestZeroRun.start
+                && index < longestZeroRun.start + longestZeroRun.length {
                 if index == longestZeroRun.start {
                     // Output :: for compression
                     // When index > 0: first colon is separator, second is start of ::
@@ -158,7 +171,8 @@ extension RFC_4291.IPv6.Address: UInt8.ASCII.Serializable {
 
             // Add colon separator (except before first segment and after ::)
             if index > 0 {
-                let afterCompression = shouldCompress && index == longestZeroRun.start + longestZeroRun.length
+                let afterCompression =
+                    shouldCompress && index == longestZeroRun.start + longestZeroRun.length
                 if !afterCompression {
                     buffer.append(.ascii.colon)
                 }
@@ -223,7 +237,7 @@ extension RFC_4291.IPv6.Address: UInt8.ASCII.Serializable {
                     if compressionIndex != nil {
                         throw Error.multipleCompressions(input)
                     }
-                    compressionIndex = 0 // Will be calculated based on segments before ::
+                    compressionIndex = 0  // Will be calculated based on segments before ::
                 }
             } else {
                 colonCount = 0
@@ -311,12 +325,17 @@ extension RFC_4291.IPv6.Address: UInt8.ASCII.Serializable {
 
         self.init(
             __unchecked: (),
-            segments[0], segments[1], segments[2], segments[3],
-            segments[4], segments[5], segments[6], segments[7]
+            segments[0],
+            segments[1],
+            segments[2],
+            segments[3],
+            segments[4],
+            segments[5],
+            segments[6],
+            segments[7]
         )
     }
 }
-
 
 // MARK: - Required Conformances
 
@@ -327,14 +346,10 @@ extension RFC_4291.IPv6.Address: CustomStringConvertible {}
 
 extension RFC_4291.IPv6.Address: Equatable {
     public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.segments.0 == rhs.segments.0 &&
-        lhs.segments.1 == rhs.segments.1 &&
-        lhs.segments.2 == rhs.segments.2 &&
-        lhs.segments.3 == rhs.segments.3 &&
-        lhs.segments.4 == rhs.segments.4 &&
-        lhs.segments.5 == rhs.segments.5 &&
-        lhs.segments.6 == rhs.segments.6 &&
-        lhs.segments.7 == rhs.segments.7
+        lhs.segments.0 == rhs.segments.0 && lhs.segments.1 == rhs.segments.1
+            && lhs.segments.2 == rhs.segments.2 && lhs.segments.3 == rhs.segments.3
+            && lhs.segments.4 == rhs.segments.4 && lhs.segments.5 == rhs.segments.5
+            && lhs.segments.6 == rhs.segments.6 && lhs.segments.7 == rhs.segments.7
     }
 }
 
@@ -404,7 +419,6 @@ extension RFC_4291.IPv6.Address: Codable {
     }
 }
 
-
 // MARK: - Address Types (RFC 4291 Section 2.4)
 
 extension RFC_4291.IPv6.Address {
@@ -471,6 +485,3 @@ extension RFC_4291.IPv6.Address {
     /// RFC 4291 Section 2.5.3
     public static let loopback = Self(__unchecked: (), 0, 0, 0, 0, 0, 0, 0, 1)
 }
-
-
-
