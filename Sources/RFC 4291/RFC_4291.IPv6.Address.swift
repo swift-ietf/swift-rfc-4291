@@ -155,8 +155,7 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
         for (index, segment) in segments.enumerated() {
             // Handle compression
             if shouldCompress && index >= longestZeroRun.start
-                && index < longestZeroRun.start + longestZeroRun.length
-            {
+                && index < longestZeroRun.start + longestZeroRun.length {
                 if index == longestZeroRun.start {
                     // Output :: for compression
                     // When index > 0: first colon is separator, second is start of ::
