@@ -112,9 +112,9 @@ extension RFC_4291.IPv6 {
     }
 }
 
-// MARK: - UInt8.ASCII.Serializable
+// MARK: - Binary.ASCII.Serializable
 
-extension RFC_4291.IPv6.Address: UInt8.ASCII.Serializable {
+extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
     static public func serialize<Buffer>(
         ascii address: RFC_4291.IPv6.Address,
         into buffer: inout Buffer
@@ -155,7 +155,8 @@ extension RFC_4291.IPv6.Address: UInt8.ASCII.Serializable {
         for (index, segment) in segments.enumerated() {
             // Handle compression
             if shouldCompress && index >= longestZeroRun.start
-                && index < longestZeroRun.start + longestZeroRun.length {
+                && index < longestZeroRun.start + longestZeroRun.length
+            {
                 if index == longestZeroRun.start {
                     // Output :: for compression
                     // When index > 0: first colon is separator, second is start of ::
@@ -339,7 +340,7 @@ extension RFC_4291.IPv6.Address: UInt8.ASCII.Serializable {
 
 // MARK: - Required Conformances
 
-extension RFC_4291.IPv6.Address: UInt8.ASCII.RawRepresentable {}
+extension RFC_4291.IPv6.Address: Binary.ASCII.RawRepresentable {}
 extension RFC_4291.IPv6.Address: CustomStringConvertible {}
 
 // MARK: - Equatable & Hashable
