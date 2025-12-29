@@ -51,9 +51,11 @@ extension RFC_4291.IPv6 {
         /// The eight 16-bit segments of the address in network byte order
         public let segments: (UInt16, UInt16, UInt16, UInt16, UInt16, UInt16, UInt16, UInt16)
 
-        /// The raw string representation of the address
+        /// The canonical text representation (RFC 5952 format)
+        ///
+        /// Required for `RawRepresentable` conformance.
         public var rawValue: String {
-            String(decoding: [UInt8](self), as: UTF8.self)
+            String(ascii: self)
         }
 
         /// Creates an IPv6 address from eight 16-bit segments
@@ -224,61 +226,31 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
 
         let input = String(decoding: bytes, as: UTF8.self)
 
-        // Check for :: compression
-        var compressionIndex: Int? = nil
-        var searchIndex = bytes.startIndex
-        var colonCount = 0
-
-        while searchIndex < bytes.endIndex {
-            if bytes[searchIndex] == .ascii.colon {
-                colonCount += 1
-                if colonCount == 2 {
-                    // Found ::
-                    if compressionIndex != nil {
-                        throw Error.multipleCompressions(input)
-                    }
-                    compressionIndex = 0  // Will be calculated based on segments before ::
-                }
-            } else {
-                colonCount = 0
-            }
-            searchIndex = bytes.index(after: searchIndex)
-        }
-
-        // Split into parts by colon
-        var parts: [[UInt8]] = []
-        var currentStart = bytes.startIndex
+        // Find :: compression marker position
+        var doubleColonPosition: Bytes.Index? = nil
+        var prevColonIndex: Bytes.Index? = nil
 
         for index in bytes.indices {
             if bytes[index] == .ascii.colon {
-                if index > currentStart {
-                    parts.append(Array(bytes[currentStart..<index]))
-                } else if index == currentStart && compressionIndex != nil {
-                    // Empty part before or after ::
-                    parts.append([])
+                if let prevIdx = prevColonIndex {
+                    // Two consecutive colons - found ::
+                    if doubleColonPosition != nil {
+                        throw Error.multipleCompressions(input)
+                    }
+                    // Position is at the first colon of ::
+                    doubleColonPosition = prevIdx
                 }
-                currentStart = bytes.index(after: index)
+                prevColonIndex = index
+            } else {
+                prevColonIndex = nil
             }
         }
 
-        // Add final part if not ending with colon
-        if currentStart < bytes.endIndex {
-            parts.append(Array(bytes[currentStart...]))
-        }
-
-        // Parse segments
-        var segments: [UInt16] = []
-
-        for part in parts {
-            if part.isEmpty {
-                // This is where :: compression occurs
-                if compressionIndex == nil {
-                    compressionIndex = segments.count
-                }
-                continue
+        // Helper to parse a hex segment
+        func parseSegment(_ part: ArraySlice<UInt8>) throws(Error) -> UInt16 {
+            guard !part.isEmpty else {
+                throw Error.invalidFormat(input)
             }
-
-            // Parse hex segment (1-4 digits)
             if part.count > 4 {
                 throw Error.invalidSegment(String(decoding: part, as: UTF8.self))
             }
@@ -297,21 +269,56 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
                 }
                 value = value * 16 + digit
             }
-            segments.append(value)
+            return value
         }
 
-        // Handle compression
-        if let compIndex = compressionIndex {
-            let zerosNeeded = 8 - segments.count
+        // Helper to split by colon and parse segments
+        func parseSegments<S: Collection>(_ slice: S) throws(Error) -> [UInt16]
+        where S.Element == UInt8, S.Index == Bytes.Index {
+            var segments: [UInt16] = []
+            var start = slice.startIndex
+
+            for index in slice.indices {
+                if slice[index] == .ascii.colon {
+                    if index > start {
+                        let part = slice[start..<index]
+                        try segments.append(parseSegment(ArraySlice(part)))
+                    }
+                    start = slice.index(after: index)
+                }
+            }
+
+            // Handle final segment
+            if start < slice.endIndex {
+                let part = slice[start...]
+                try segments.append(parseSegment(ArraySlice(part)))
+            }
+
+            return segments
+        }
+
+        var segments: [UInt16]
+
+        if let dcPos = doubleColonPosition {
+            // Has :: compression
+            let beforeDC = bytes[bytes.startIndex..<dcPos]
+            let afterDCStart = bytes.index(dcPos, offsetBy: 2)
+            let afterDC = bytes[afterDCStart..<bytes.endIndex]
+
+            let beforeSegments = beforeDC.isEmpty ? [] : try parseSegments(beforeDC)
+            let afterSegments = afterDC.isEmpty ? [] : try parseSegments(afterDC)
+
+            let totalSegments = beforeSegments.count + afterSegments.count
+            let zerosNeeded = 8 - totalSegments
+
             if zerosNeeded < 0 {
                 throw Error.tooManySegments(input)
             }
 
-            // Insert zeros at compression point
-            let before = segments[0..<compIndex]
-            let after = segments[compIndex...]
-            let zeros = Array(repeating: UInt16(0), count: zerosNeeded)
-            segments = Array(before) + zeros + Array(after)
+            segments = beforeSegments + Array(repeating: 0, count: zerosNeeded) + afterSegments
+        } else {
+            // No compression - must have exactly 8 segments
+            segments = try parseSegments(bytes)
         }
 
         // Validate we have exactly 8 segments
@@ -333,6 +340,47 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
             segments[5],
             segments[6],
             segments[7]
+        )
+    }
+}
+
+// MARK: - Binary.Serializable
+
+extension RFC_4291.IPv6.Address: Binary.Serializable {
+    public static func serialize<Buffer>(
+        _ address: RFC_4291.IPv6.Address,
+        into buffer: inout Buffer
+    ) where Buffer: RangeReplaceableCollection, Buffer.Element == UInt8 {
+        let s = address.segments
+        // Network byte order (big-endian): high byte first for each segment
+        buffer.append(UInt8(s.0 >> 8)); buffer.append(UInt8(s.0 & 0xFF))
+        buffer.append(UInt8(s.1 >> 8)); buffer.append(UInt8(s.1 & 0xFF))
+        buffer.append(UInt8(s.2 >> 8)); buffer.append(UInt8(s.2 & 0xFF))
+        buffer.append(UInt8(s.3 >> 8)); buffer.append(UInt8(s.3 & 0xFF))
+        buffer.append(UInt8(s.4 >> 8)); buffer.append(UInt8(s.4 & 0xFF))
+        buffer.append(UInt8(s.5 >> 8)); buffer.append(UInt8(s.5 & 0xFF))
+        buffer.append(UInt8(s.6 >> 8)); buffer.append(UInt8(s.6 & 0xFF))
+        buffer.append(UInt8(s.7 >> 8)); buffer.append(UInt8(s.7 & 0xFF))
+    }
+
+    /// Creates an IPv6 address from 16 binary bytes in network byte order
+    ///
+    /// - Parameter bytes: Exactly 16 bytes in network byte order (big-endian)
+    /// - Throws: `Error.invalidFormat` if not exactly 16 bytes
+    public init<Bytes: Collection>(binary bytes: Bytes) throws(Error)
+    where Bytes.Element == UInt8 {
+        guard bytes.count == 16 else {
+            throw .invalidFormat("Expected 16 bytes, got \(bytes.count)")
+        }
+        var iterator = bytes.makeIterator()
+        func next16() -> UInt16 {
+            let hi = UInt16(iterator.next()!)
+            let lo = UInt16(iterator.next()!)
+            return (hi << 8) | lo
+        }
+        self.init(
+            next16(), next16(), next16(), next16(),
+            next16(), next16(), next16(), next16()
         )
     }
 }
@@ -419,56 +467,86 @@ extension RFC_4291.IPv6.Address: Codable {
     }
 }
 
-// MARK: - Address Types (RFC 4291 Section 2.4)
+// MARK: - Address Type Predicates (RFC 4291 Section 2.4)
 
 extension RFC_4291.IPv6.Address {
-    /// Whether this is the unspecified address (::)
-    ///
-    /// RFC 4291 Section 2.5.2: The address 0:0:0:0:0:0:0:0 is called the unspecified address.
-    /// It indicates the absence of an address.
-    public var isUnspecified: Bool {
-        self == .unspecified
+    /// Namespace for address type predicates
+    public struct Is: Sendable {
+        @usableFromInline
+        let address: RFC_4291.IPv6.Address
+
+        @usableFromInline
+        init(_ address: RFC_4291.IPv6.Address) {
+            self.address = address
+        }
+
+        /// Whether this is the unspecified address (::)
+        ///
+        /// RFC 4291 Section 2.5.2: The address 0:0:0:0:0:0:0:0 is called the unspecified address.
+        /// It indicates the absence of an address.
+        @inlinable
+        public var unspecified: Bool {
+            address == .unspecified
+        }
+
+        /// Whether this is the loopback address (::1)
+        ///
+        /// RFC 4291 Section 2.5.3: The loopback address 0:0:0:0:0:0:0:1 is used by a node
+        /// to send an IPv6 packet to itself.
+        @inlinable
+        public var loopback: Bool {
+            address == .loopback
+        }
+
+        /// Whether this is a multicast address (ff00::/8)
+        ///
+        /// RFC 4291 Section 2.7: An IPv6 multicast address is an identifier for a group of interfaces.
+        /// Multicast addresses have the format ff00::/8.
+        @inlinable
+        public var multicast: Bool {
+            (address.segments.0 & 0xFF00) == 0xFF00
+        }
+
+        /// Whether this is a link-local unicast address (fe80::/10)
+        ///
+        /// RFC 4291 Section 2.5.6: Link-local addresses are for use on a single link.
+        /// They have the format fe80::/10.
+        @inlinable
+        public var linkLocal: Bool {
+            (address.segments.0 & 0xFFC0) == 0xFE80
+        }
+
+        /// Whether this is a unique local address (fc00::/7)
+        ///
+        /// RFC 4193: Unique Local IPv6 Unicast Addresses
+        /// These addresses are not expected to be routable on the global Internet.
+        @inlinable
+        public var uniqueLocal: Bool {
+            (address.segments.0 & 0xFE00) == 0xFC00
+        }
+
+        /// Whether this is a global unicast address
+        ///
+        /// RFC 4291 Section 2.5.4: Global unicast addresses are identified by
+        /// the format prefix 001 (binary), but in practice this includes all
+        /// addresses not otherwise classified.
+        @inlinable
+        public var globalUnicast: Bool {
+            !unspecified && !loopback && !multicast && !linkLocal && !uniqueLocal
+        }
     }
 
-    /// Whether this is the loopback address (::1)
+    /// Access address type predicates
     ///
-    /// RFC 4291 Section 2.5.3: The loopback address 0:0:0:0:0:0:0:1 is used by a node
-    /// to send an IPv6 packet to itself.
-    public var isLoopback: Bool {
-        self == .loopback
-    }
-
-    /// Whether this is a multicast address (ff00::/8)
+    /// ## Example
     ///
-    /// RFC 4291 Section 2.7: An IPv6 multicast address is an identifier for a group of interfaces.
-    /// Multicast addresses have the format ff00::/8.
-    public var isMulticast: Bool {
-        (segments.0 & 0xFF00) == 0xFF00
-    }
-
-    /// Whether this is a link-local unicast address (fe80::/10)
-    ///
-    /// RFC 4291 Section 2.5.6: Link-local addresses are for use on a single link.
-    /// They have the format fe80::/10.
-    public var isLinkLocal: Bool {
-        (segments.0 & 0xFFC0) == 0xFE80
-    }
-
-    /// Whether this is a unique local address (fc00::/7)
-    ///
-    /// RFC 4193: Unique Local IPv6 Unicast Addresses
-    /// These addresses are not expected to be routable on the global Internet.
-    public var isUniqueLocal: Bool {
-        (segments.0 & 0xFE00) == 0xFC00
-    }
-
-    /// Whether this is a global unicast address
-    ///
-    /// RFC 4291 Section 2.5.4: Global unicast addresses are identified by
-    /// the format prefix 001 (binary), but in practice this includes all
-    /// addresses not otherwise classified.
-    public var isGlobalUnicast: Bool {
-        !isUnspecified && !isLoopback && !isMulticast && !isLinkLocal && !isUniqueLocal
+    /// ```swift
+    /// let address = RFC_4291.IPv6.Address(0xfe80, 0, 0, 0, 0, 0, 0, 1)
+    /// if address.is.linkLocal { ... }
+    /// if address.is.multicast { ... }
+    /// ```
+    public var `is`: Is {
+        Is(self)
     }
 }
 
