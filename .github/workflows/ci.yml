@@ -19,7 +19,7 @@ jobs:
     name: macOS (Swift 6.2, debug)
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Select Xcode 26.0
         run: sudo xcode-select -s /Applications/Xcode_26.0.app
@@ -28,10 +28,10 @@ jobs:
         run: swift --version
 
       - name: Cache Swift packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .build
-          key: macos-swift62-spm-${{ hashFiles('Package.swift', 'Package@*.swift') }}
+          key: macos-swift62-spm-v4-${{ hashFiles('Package.swift', 'Package@*.swift') }}
           restore-keys: |
             macos-swift62-spm-
 
@@ -63,13 +63,13 @@ jobs:
     runs-on: ubuntu-latest
     container: swift:6.2
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Cache Swift packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .build
-          key: linux-swift62-spm-${{ hashFiles('Package.swift', 'Package@*.swift') }}
+          key: linux-swift62-spm-v4-${{ hashFiles('Package.swift', 'Package@*.swift') }}
           restore-keys: linux-swift62-spm-
 
       # Note: swift test builds automatically in release mode
@@ -83,23 +83,24 @@ jobs:
     runs-on: ubuntu-latest
     container: swift:6.2
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Cache Swift packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .build
-          key: linux-swift62-compat-spm-${{ hashFiles('Package.swift', 'Package@*.swift') }}
+          key: linux-swift62-compat-spm-v4-${{ hashFiles('Package.swift', 'Package@*.swift') }}
           restore-keys: linux-swift62-compat-spm-
 
       # Note: swift test builds automatically
       - name: Test (Swift 6.2)
         run: swift test -c release
 
-  # Windows validation (no container - use setup-swift action)
+  # Windows validation
   windows-latest:
     name: Windows (Swift 6.2)
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
 
@@ -118,5 +119,6 @@ jobs:
           key: windows-swift62-spm-v2-${{ hashFiles('Package.swift', 'Package@*.swift') }}
           restore-keys: windows-swift62-spm-
 
-      - name: Build
-        run: swift build -c debug -v
+      # Note: swift test builds automatically
+      - name: Test
+        run: swift test -c debug
