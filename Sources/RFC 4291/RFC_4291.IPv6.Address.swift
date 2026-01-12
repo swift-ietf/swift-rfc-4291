@@ -18,7 +18,7 @@
 //
 // Defines the 128-bit IPv6 address structure
 
-public import INCITS_4_1986
+public import ASCII
 
 extension RFC_4291.IPv6 {
     /// IPv6 Address (RFC 4291)
