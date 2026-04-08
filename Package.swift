@@ -22,7 +22,7 @@ let package = Package(
         .library(name: "RFC 4291", targets: ["RFC 4291"])
     ],
     dependencies: [
-        .package(path: "../../swift-foundations/swift-ascii"),
+        .package(path: "../../swift-primitives/swift-ascii-serializer-primitives"),
         .package(path: "../../swift-primitives/swift-standard-library-extensions"),
         .package(path: "../../swift-primitives/swift-binary-primitives")
     ],
@@ -30,7 +30,7 @@ let package = Package(
         .target(
             name: "RFC 4291",
             dependencies: [
-                .product(name: "ASCII", package: "swift-ascii"),
+                .product(name: "ASCII Serializer Primitives", package: "swift-ascii-serializer-primitives"),
                 .product(name: "Standard Library Extensions", package: "swift-standard-library-extensions"),
                 .product(name: "Binary Primitives", package: "swift-binary-primitives")
             ]
