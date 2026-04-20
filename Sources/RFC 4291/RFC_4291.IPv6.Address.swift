@@ -28,7 +28,11 @@ extension RFC_4291.IPv6 {
     ///
     /// ## Storage
     ///
-    /// Internally stored as eight `UInt16` values in network byte order (big-endian).
+    /// Internally stored as eight `UInt16` values in host byte order (each
+    /// segment as the integer it appears to be — `0x2001` is stored as the
+    /// integer `0x2001`, regardless of host endianness). Network-order bytes
+    /// are produced by `Binary.Serializable.serialize(_:into:)` at
+    /// serialization boundaries, not at the storage layer.
     ///
     /// ## Text Representation
     ///
@@ -48,7 +52,13 @@ extension RFC_4291.IPv6 {
     /// let segments = address.segments
     /// ```
     public struct Address: Sendable {
-        /// The eight 16-bit segments of the address in network byte order
+        /// The eight 16-bit segments of the address in host byte order.
+        ///
+        /// Each segment is the integer it appears to be in the text
+        /// representation — `0x2001` is stored as the integer `0x2001`,
+        /// regardless of host endianness. Network-order bytes are produced by
+        /// `Binary.Serializable.serialize(_:into:)` at the serialization
+        /// boundary.
         public let segments: (UInt16, UInt16, UInt16, UInt16, UInt16, UInt16, UInt16, UInt16)
 
         /// The canonical text representation (RFC 5952 format)
