@@ -7,15 +7,15 @@ struct ASCIISerializationTests {
 
     // MARK: - Special Addresses
 
-    @Test(":: (unspecified) should serialize correctly")
-    func testUnspecifiedSerialization() {
+    @Test
+    func `:: (unspecified) should serialize correctly`() {
         let addr = RFC_4291.IPv6.Address.unspecified
         let result = addr.ascii.bytes
         #expect(String(decoding: result, as: UTF8.self) == "::")
     }
 
-    @Test("::1 (loopback) should serialize correctly")
-    func testLoopbackSerialization() {
+    @Test
+    func `::1 (loopback) should serialize correctly`() {
         let addr = RFC_4291.IPv6.Address.loopback
         let result = addr.ascii.bytes
         #expect(String(decoding: result, as: UTF8.self) == "::1")
@@ -23,8 +23,8 @@ struct ASCIISerializationTests {
 
     // MARK: - Link-Local Addresses
 
-    @Test("fe80::1 should serialize correctly")
-    func testLinkLocalSerialization() {
+    @Test
+    func `fe80::1 should serialize correctly`() {
         let addr = RFC_4291.IPv6.Address(0xfe80, 0, 0, 0, 0, 0, 0, 1)
         let result = addr.ascii.bytes
         #expect(String(decoding: result, as: UTF8.self) == "fe80::1")
@@ -32,15 +32,15 @@ struct ASCIISerializationTests {
 
     // MARK: - Documentation Addresses (RFC 3849)
 
-    @Test("2001:db8::1 should serialize correctly")
-    func testDocSerialization() {
+    @Test
+    func `2001:db8::1 should serialize correctly`() {
         let addr = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1)
         let result = addr.ascii.bytes
         #expect(String(decoding: result, as: UTF8.self) == "2001:db8::1")
     }
 
-    @Test("2001:db8:85a3::8a2e:370:7334 should serialize correctly")
-    func testDocAddressWithMiddleCompression() {
+    @Test
+    func `2001:db8:85a3::8a2e:370:7334 should serialize correctly`() {
         let addr = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0x85a3, 0, 0, 0x8a2e, 0x0370, 0x7334)
         let result = addr.ascii.bytes
         #expect(String(decoding: result, as: UTF8.self) == "2001:db8:85a3::8a2e:370:7334")
@@ -48,8 +48,8 @@ struct ASCIISerializationTests {
 
     // MARK: - No Compression (all non-zero)
 
-    @Test("Full address with no zeros should not compress")
-    func testNoCompression() {
+    @Test
+    func `Full address with no zeros should not compress`() {
         let addr = RFC_4291.IPv6.Address(
             0x2001,
             0x0db8,
@@ -66,8 +66,8 @@ struct ASCIISerializationTests {
 
     // MARK: - Single Zero (no compression per RFC 5952)
 
-    @Test("Single zero segment should not compress")
-    func testSingleZeroNoCompression() {
+    @Test
+    func `Single zero segment should not compress`() {
         let addr = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0x5678, 0x9abc, 0xdef0, 0x1111, 0x2222)
         let result = addr.ascii.bytes
         #expect(String(decoding: result, as: UTF8.self) == "2001:db8:0:5678:9abc:def0:1111:2222")
@@ -75,22 +75,22 @@ struct ASCIISerializationTests {
 
     // MARK: - Compression at Different Positions
 
-    @Test("Compression at start (::...)")
-    func testCompressionAtStart() {
+    @Test
+    func `Compression at start (::...)`() {
         let addr = RFC_4291.IPv6.Address(0, 0, 0, 0, 0, 0, 0x8a2e, 0x7334)
         let result = addr.ascii.bytes
         #expect(String(decoding: result, as: UTF8.self) == "::8a2e:7334")
     }
 
-    @Test("Compression in middle (...::...)")
-    func testCompressionInMiddle() {
+    @Test
+    func `Compression in middle (...::...)`() {
         let addr = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0x8a2e, 0x7334)
         let result = addr.ascii.bytes
         #expect(String(decoding: result, as: UTF8.self) == "2001:db8::8a2e:7334")
     }
 
-    @Test("Compression at end (...::)")
-    func testCompressionAtEnd() {
+    @Test
+    func `Compression at end (...::)`() {
         let addr = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0x8a2e, 0x7334, 0, 0, 0, 0)
         let result = addr.ascii.bytes
         #expect(String(decoding: result, as: UTF8.self) == "2001:db8:8a2e:7334::")
@@ -98,8 +98,8 @@ struct ASCIISerializationTests {
 
     // MARK: - RFC 5952 Section 4.2.3: First Longest Run
 
-    @Test("Multiple equal runs should compress first one")
-    func testFirstLongestRunCompression() {
+    @Test
+    func `Multiple equal runs should compress first one`() {
         // Two runs of 2 zeros each - should compress the first one
         let addr = RFC_4291.IPv6.Address(0x2001, 0, 0, 0x5678, 0x9abc, 0, 0, 0x2222)
         let result = addr.ascii.bytes
@@ -108,8 +108,8 @@ struct ASCIISerializationTests {
 
     // MARK: - Lowercase Hex (RFC 5952 Section 4.3)
 
-    @Test("Hex digits should be lowercase")
-    func testLowercaseHex() {
+    @Test
+    func `Hex digits should be lowercase`() {
         let addr = RFC_4291.IPv6.Address(
             0xABCD,
             0xEF01,
@@ -126,8 +126,8 @@ struct ASCIISerializationTests {
 
     // MARK: - Leading Zero Suppression (RFC 5952 Section 4.1)
 
-    @Test("Leading zeros should be suppressed")
-    func testLeadingZeroSuppression() {
+    @Test
+    func `Leading zeros should be suppressed`() {
         let addr = RFC_4291.IPv6.Address(
             0x0001,
             0x0020,
@@ -148,42 +148,42 @@ struct ASCIISerializationTests {
 @Suite("IPv6 Address RawValue")
 struct RawValueTests {
 
-    @Test("rawValue returns canonical RFC 5952 text representation")
-    func testRawValueFormat() {
+    @Test
+    func `rawValue returns canonical RFC 5952 text representation`() {
         let addr = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1)
         #expect(addr.rawValue == "2001:db8::1")
     }
 
-    @Test("rawValue for loopback is ::1")
-    func testLoopbackRawValue() {
+    @Test
+    func `rawValue for loopback is ::1`() {
         let addr = RFC_4291.IPv6.Address.loopback
         #expect(addr.rawValue == "::1")
     }
 
-    @Test("rawValue for unspecified is ::")
-    func testUnspecifiedRawValue() {
+    @Test
+    func `rawValue for unspecified is ::`() {
         let addr = RFC_4291.IPv6.Address.unspecified
         #expect(addr.rawValue == "::")
     }
 
-    @Test("rawValue round-trip via init(rawValue:) - loopback")
-    func testRawValueRoundTripLoopback() {
+    @Test
+    func `rawValue round-trip via init(rawValue:) - loopback`() {
         let original = RFC_4291.IPv6.Address.loopback
         let rawValue = original.rawValue
         let parsed = RFC_4291.IPv6.Address(rawValue: rawValue)
         #expect(parsed == original)
     }
 
-    @Test("rawValue round-trip via init(rawValue:) - unspecified")
-    func testRawValueRoundTripUnspecified() {
+    @Test
+    func `rawValue round-trip via init(rawValue:) - unspecified`() {
         let original = RFC_4291.IPv6.Address.unspecified
         let rawValue = original.rawValue
         let parsed = RFC_4291.IPv6.Address(rawValue: rawValue)
         #expect(parsed == original)
     }
 
-    @Test("rawValue round-trip via init(rawValue:) - full address")
-    func testRawValueRoundTripFull() {
+    @Test
+    func `rawValue round-trip via init(rawValue:) - full address`() {
         let original = RFC_4291.IPv6.Address(
             0x2001, 0x0db8, 0x1234, 0x5678,
             0x9abc, 0xdef0, 0x1111, 0x2222
@@ -193,46 +193,46 @@ struct RawValueTests {
         #expect(parsed == original)
     }
 
-    @Test("rawValue round-trip via init(rawValue:) - compression at start")
-    func testRawValueRoundTripCompressionAtStart() {
+    @Test
+    func `rawValue round-trip via init(rawValue:) - compression at start`() {
         let original = RFC_4291.IPv6.Address(0, 0, 0, 0, 0, 0, 0x8a2e, 0x7334)
         let rawValue = original.rawValue
         let parsed = RFC_4291.IPv6.Address(rawValue: rawValue)
         #expect(parsed == original)
     }
 
-    @Test("rawValue round-trip via init(rawValue:) - compression in middle")
-    func testRawValueRoundTripCompressionInMiddle() {
+    @Test
+    func `rawValue round-trip via init(rawValue:) - compression in middle`() {
         let original = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0x85a3, 0, 0, 0x8a2e, 0x0370, 0x7334)
         let rawValue = original.rawValue
         let parsed = RFC_4291.IPv6.Address(rawValue: rawValue)
         #expect(parsed == original)
     }
 
-    @Test("rawValue round-trip via init(rawValue:) - compression at end")
-    func testRawValueRoundTripCompressionAtEnd() {
+    @Test
+    func `rawValue round-trip via init(rawValue:) - compression at end`() {
         let original = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0, 0)
         let rawValue = original.rawValue
         let parsed = RFC_4291.IPv6.Address(rawValue: rawValue)
         #expect(parsed == original)
     }
 
-    @Test("rawValue round-trip via init(rawValue:) - link-local")
-    func testRawValueRoundTripLinkLocal() {
+    @Test
+    func `rawValue round-trip via init(rawValue:) - link-local`() {
         let original = RFC_4291.IPv6.Address(0xfe80, 0, 0, 0, 0, 0, 0, 1)
         let rawValue = original.rawValue
         let parsed = RFC_4291.IPv6.Address(rawValue: rawValue)
         #expect(parsed == original)
     }
 
-    @Test("rawValue for link-local address")
-    func testLinkLocalRawValue() {
+    @Test
+    func `rawValue for link-local address`() {
         let addr = RFC_4291.IPv6.Address(0xfe80, 0, 0, 0, 0, 0, 0, 1)
         #expect(addr.rawValue == "fe80::1")
     }
 
-    @Test("rawValue for full address without compression")
-    func testFullAddressRawValue() {
+    @Test
+    func `rawValue for full address without compression`() {
         let addr = RFC_4291.IPv6.Address(
             0x2001, 0x0db8, 0x1234, 0x5678,
             0x9abc, 0xdef0, 0x1111, 0x2222
@@ -240,26 +240,26 @@ struct RawValueTests {
         #expect(addr.rawValue == "2001:db8:1234:5678:9abc:def0:1111:2222")
     }
 
-    @Test("rawValue uses lowercase hex")
-    func testRawValueLowercaseHex() {
+    @Test
+    func `rawValue uses lowercase hex`() {
         let addr = RFC_4291.IPv6.Address(0xABCD, 0xEF01, 0, 0, 0, 0, 0, 1)
         #expect(addr.rawValue == "abcd:ef01::1")
     }
 
-    @Test("rawValue suppresses leading zeros in segments")
-    func testRawValueNoLeadingZeros() {
+    @Test
+    func `rawValue suppresses leading zeros in segments`() {
         let addr = RFC_4291.IPv6.Address(0x0001, 0x0020, 0x0300, 0x4000, 0, 0, 0, 1)
         #expect(addr.rawValue == "1:20:300:4000::1")
     }
 
-    @Test("init(rawValue:) returns nil for invalid input")
-    func testInvalidRawValue() {
+    @Test
+    func `init(rawValue:) returns nil for invalid input`() {
         let invalid = RFC_4291.IPv6.Address(rawValue: "not-an-address")
         #expect(invalid == nil)
     }
 
-    @Test("init(rawValue:) returns nil for empty string")
-    func testEmptyRawValue() {
+    @Test
+    func `init(rawValue:) returns nil for empty string`() {
         let empty = RFC_4291.IPv6.Address(rawValue: "")
         #expect(empty == nil)
     }
@@ -270,24 +270,24 @@ struct RawValueTests {
 @Suite("IPv6 Address Binary Serialization")
 struct BinarySerializationTests {
 
-    @Test("Loopback (::1) serializes to 16 bytes with last byte = 1")
-    func testLoopbackBinary() {
+    @Test
+    func `Loopback (::1) serializes to 16 bytes with last byte = 1`() {
         let addr = RFC_4291.IPv6.Address.loopback
         let bytes = [UInt8](addr)
         #expect(bytes.count == 16)
         #expect(bytes == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
     }
 
-    @Test("Unspecified (::) serializes to 16 zero bytes")
-    func testUnspecifiedBinary() {
+    @Test
+    func `Unspecified (::) serializes to 16 zero bytes`() {
         let addr = RFC_4291.IPv6.Address.unspecified
         let bytes = [UInt8](addr)
         #expect(bytes.count == 16)
         #expect(bytes.allSatisfy { $0 == 0 })
     }
 
-    @Test("2001:db8::1 serializes correctly in network byte order")
-    func testDocAddressBinary() {
+    @Test
+    func `2001:db8::1 serializes correctly in network byte order`() {
         let addr = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1)
         let bytes = [UInt8](addr)
         #expect(bytes.count == 16)
@@ -304,24 +304,24 @@ struct BinarySerializationTests {
         #expect(bytes[15] == 0x01)
     }
 
-    @Test("Binary round-trip preserves address")
-    func testBinaryRoundTrip() throws {
+    @Test
+    func `Binary round-trip preserves address`() throws {
         let original = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0x85a3, 0x1234, 0x5678, 0x9abc, 0xdef0, 0x1111)
         let bytes = [UInt8](original)
         let parsed = try RFC_4291.IPv6.Address(binary: bytes)
         #expect(parsed == original)
     }
 
-    @Test("Link-local address binary round-trip")
-    func testLinkLocalBinaryRoundTrip() throws {
+    @Test
+    func `Link-local address binary round-trip`() throws {
         let original = RFC_4291.IPv6.Address(0xfe80, 0, 0, 0, 0, 0, 0, 1)
         let bytes = [UInt8](original)
         let parsed = try RFC_4291.IPv6.Address(binary: bytes)
         #expect(parsed == original)
     }
 
-    @Test("Binary parsing rejects wrong byte count")
-    func testBinaryParsingRejectsWrongCount() {
+    @Test
+    func `Binary parsing rejects wrong byte count`() {
         #expect(throws: RFC_4291.IPv6.Address.Error.self) {
             _ = try RFC_4291.IPv6.Address(binary: [0, 0, 0, 0])  // Only 4 bytes
         }
@@ -330,8 +330,8 @@ struct BinarySerializationTests {
         }
     }
 
-    @Test("All segments serialize in network byte order")
-    func testNetworkByteOrder() {
+    @Test
+    func `All segments serialize in network byte order`() {
         let addr = RFC_4291.IPv6.Address(
             0xAABB, 0xCCDD, 0xEEFF, 0x1122,
             0x3344, 0x5566, 0x7788, 0x99AA
