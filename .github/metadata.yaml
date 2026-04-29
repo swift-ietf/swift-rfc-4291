@@ -1,0 +1,9 @@
+# .github/metadata.yaml
+# Triaged by AI-assisted bulk pass (2026-04-29).
+description: "Swift implementation of RFC 4291: IP Version 6 Addressing Architecture."
+topics:
+  - standards
+  - rfc
+  - rfc-4291
+  - ipv6
+homepage: "https://swift-institute.org"
