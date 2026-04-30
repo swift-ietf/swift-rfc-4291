@@ -12,6 +12,7 @@
 // Platform:  macOS 26.0 (arm64)
 //
 // Result: REFUTED — layouts differ in BOTH alignment AND byte order.
+// Revalidated: Swift 6.3.1 (2026-04-30) — PASSES
 //         Alignment:  RFC = 2, POSIX = 4 (anticipated mismatch — confirmed)
 //         Byte order: RFC = host order (little-endian on arm64),
 //                     POSIX/in6_addr = network order (big-endian)
