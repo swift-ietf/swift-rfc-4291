@@ -130,7 +130,7 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
     static public func serialize<Buffer>(
         ascii address: RFC_4291.IPv6.Address,
         into buffer: inout Buffer
-    ) where Buffer: RangeReplaceableCollection, Buffer.Element == UInt8 {
+    ) where Buffer: RangeReplaceableCollection, Buffer.Element == Byte {
         // Convert segments to array for easier processing
         let segments = [
             address.segments.0, address.segments.1, address.segments.2, address.segments.3,
@@ -175,8 +175,8 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
                     // When index == 0: both colons are the ::
                     //   ::1 → ":" + ":" + "1"
                     //   :: → ":" + ":"
-                    buffer.append(.ascii.colon)
-                    buffer.append(.ascii.colon)
+                    buffer.append(ASCII.Code.colon)
+                    buffer.append(ASCII.Code.colon)
                 }
                 continue
             }
@@ -186,7 +186,7 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
                 let afterCompression =
                     shouldCompress && index == longestZeroRun.start + longestZeroRun.length
                 if !afterCompression {
-                    buffer.append(.ascii.colon)
+                    buffer.append(ASCII.Code.colon)
                 }
             }
 
@@ -204,12 +204,12 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
     /// ## Category Theory
     ///
     /// Parsing transformation:
-    /// - **Domain**: [UInt8] (ASCII bytes)
+    /// - **Domain**: [Byte] (ASCII bytes)
     /// - **Codomain**: RFC_4291.IPv6.Address (structured data)
     ///
     /// String parsing is derived composition:
     /// ```
-    /// String → [UInt8] (UTF-8) → Address
+    /// String → [Byte] (UTF-8) → Address
     /// ```
     ///
     /// ## Format
@@ -228,20 +228,25 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
     /// ## Example
     ///
     /// ```swift
-    /// let addr = try RFC_4291.IPv6.Address(ascii: "2001:db8::1".utf8, in: ())
+    /// let addr = try RFC_4291.IPv6.Address(ascii: Array<Byte>("2001:db8::1".utf8), in: ())
     /// ```
     public init<Bytes: Collection>(ascii bytes: Bytes, in context: Context) throws(Error)
-    where Bytes.Element == UInt8 {
+    where Bytes.Element == Byte {
         guard !bytes.isEmpty else { throw Error.empty }
 
         let input = String(decoding: bytes, as: UTF8.self)
 
-        // Find :: compression marker position
-        var doubleColonPosition: Bytes.Index? = nil
-        var prevColonIndex: Bytes.Index? = nil
+        // Type-up: lift to ASCII.Code at the entry boundary so the body works
+        // against ASCII.Code constants directly (RFC 4291 grammar is strict
+        // ASCII; non-ASCII bytes are fail-state).
+        let arr = Array<ASCII.Code>(bytes)
 
-        for index in bytes.indices {
-            if bytes[index] == .ascii.colon {
+        // Find :: compression marker position
+        var doubleColonPosition: Int? = nil
+        var prevColonIndex: Int? = nil
+
+        for index in arr.indices {
+            if arr[index] == ASCII.Code.colon {
                 if let prevIdx = prevColonIndex {
                     // Two consecutive colons - found ::
                     if doubleColonPosition != nil {
@@ -257,7 +262,7 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
         }
 
         // Helper to parse a hex segment
-        func parseSegment(_ part: ArraySlice<UInt8>) throws(Error) -> UInt16 {
+        func parseSegment(_ part: ArraySlice<ASCII.Code>) throws(Error) -> UInt16 {
             guard !part.isEmpty else {
                 throw Error.invalidFormat(input)
             }
@@ -266,16 +271,19 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
             }
 
             var value: UInt16 = 0
-            for byte in part {
+            for code in part {
                 let digit: UInt16
-                if byte >= .ascii.`0` && byte <= .ascii.`9` {
-                    digit = UInt16(byte - .ascii.`0`)
-                } else if byte >= .ascii.A && byte <= .ascii.F {
-                    digit = UInt16(byte - .ascii.A + 10)
-                } else if byte >= .ascii.a && byte <= .ascii.f {
-                    digit = UInt16(byte - .ascii.a + 10)
+                if code >= ASCII.Code.`0` && code <= ASCII.Code.`9` {
+                    // audit: underlying — pending byte-arithmetic decision
+                    digit = UInt16(code.underlying &- ASCII.Code.`0`.underlying)
+                } else if code >= ASCII.Code.A && code <= ASCII.Code.F {
+                    // audit: underlying — pending byte-arithmetic decision
+                    digit = UInt16(code.underlying &- ASCII.Code.A.underlying) &+ 10
+                } else if code >= ASCII.Code.a && code <= ASCII.Code.f {
+                    // audit: underlying — pending byte-arithmetic decision
+                    digit = UInt16(code.underlying &- ASCII.Code.a.underlying) &+ 10
                 } else {
-                    throw Error.invalidCharacter(input, byte: byte)
+                    throw Error.invalidCharacter(input, code: code)
                 }
                 value = value * 16 + digit
             }
@@ -283,16 +291,15 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
         }
 
         // Helper to split by colon and parse segments
-        func parseSegments<S: Collection>(_ slice: S) throws(Error) -> [UInt16]
-        where S.Element == UInt8, S.Index == Bytes.Index {
+        func parseSegments(_ slice: ArraySlice<ASCII.Code>) throws(Error) -> [UInt16] {
             var segments: [UInt16] = []
             var start = slice.startIndex
 
             for index in slice.indices {
-                if slice[index] == .ascii.colon {
+                if slice[index] == ASCII.Code.colon {
                     if index > start {
                         let part = slice[start..<index]
-                        try segments.append(parseSegment(ArraySlice(part)))
+                        try segments.append(parseSegment(part))
                     }
                     start = slice.index(after: index)
                 }
@@ -301,7 +308,7 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
             // Handle final segment
             if start < slice.endIndex {
                 let part = slice[start...]
-                try segments.append(parseSegment(ArraySlice(part)))
+                try segments.append(parseSegment(part))
             }
 
             return segments
@@ -311,9 +318,9 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
 
         if let dcPos = doubleColonPosition {
             // Has :: compression
-            let beforeDC = bytes[bytes.startIndex..<dcPos]
-            let afterDCStart = bytes.index(dcPos, offsetBy: 2)
-            let afterDC = bytes[afterDCStart..<bytes.endIndex]
+            let beforeDC = arr[arr.startIndex..<dcPos]
+            let afterDCStart = arr.index(dcPos, offsetBy: 2)
+            let afterDC = arr[afterDCStart..<arr.endIndex]
 
             let beforeSegments = beforeDC.isEmpty ? [] : try parseSegments(beforeDC)
             let afterSegments = afterDC.isEmpty ? [] : try parseSegments(afterDC)
@@ -328,7 +335,7 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
             segments = beforeSegments + Array(repeating: 0, count: zerosNeeded) + afterSegments
         } else {
             // No compression - must have exactly 8 segments
-            segments = try parseSegments(bytes)
+            segments = try parseSegments(arr[...])
         }
 
         // Validate we have exactly 8 segments
@@ -460,7 +467,7 @@ extension RFC_4291.IPv6.Address: Codable {
         let container = try decoder.singleValueContainer()
         let string = try container.decode(String.self)
         do {
-            try self.init(ascii: string.utf8, in: ())
+            try self.init(ascii: Array<Byte>(string.utf8), in: ())
         } catch {
             throw DecodingError.dataCorrupted(
                 DecodingError.Context(

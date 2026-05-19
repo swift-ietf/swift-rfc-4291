@@ -17,7 +17,7 @@ extension RFC_4291.IPv6.Address {
     /// Error type for IPv6 address parsing
     public enum Error: Swift.Error, Sendable, Equatable {
         case empty
-        case invalidCharacter(_ value: String, byte: UInt8)
+        case invalidCharacter(_ value: String, code: ASCII.Code)
         case invalidFormat(_ value: String)
         case tooManySegments(_ value: String)
         case tooFewSegments(_ value: String)
@@ -31,8 +31,8 @@ extension RFC_4291.IPv6.Address.Error: CustomStringConvertible {
         switch self {
         case .empty:
             return "IPv6 address cannot be empty"
-        case .invalidCharacter(let value, let byte):
-            return "Invalid byte 0x\(String(byte, radix: 16)) in IPv6 address '\(value)'"
+        case .invalidCharacter(let value, let code):
+            return "Invalid byte 0x\(String(code, radix: 16)) in IPv6 address '\(value)'"
         case .invalidFormat(let value):
             return "Invalid IPv6 address format: '\(value)'"
         case .tooManySegments(let value):
