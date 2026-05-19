@@ -367,17 +367,18 @@ extension RFC_4291.IPv6.Address: Binary.Serializable {
     public static func serialize<Buffer>(
         _ address: RFC_4291.IPv6.Address,
         into buffer: inout Buffer
-    ) where Buffer: RangeReplaceableCollection, Buffer.Element == UInt8 {
+    ) where Buffer: RangeReplaceableCollection, Buffer.Element == Byte {
         let s = address.segments
-        // Network byte order (big-endian): high byte first for each segment
-        buffer.append(UInt8(s.0 >> 8)); buffer.append(UInt8(s.0 & 0xFF))
-        buffer.append(UInt8(s.1 >> 8)); buffer.append(UInt8(s.1 & 0xFF))
-        buffer.append(UInt8(s.2 >> 8)); buffer.append(UInt8(s.2 & 0xFF))
-        buffer.append(UInt8(s.3 >> 8)); buffer.append(UInt8(s.3 & 0xFF))
-        buffer.append(UInt8(s.4 >> 8)); buffer.append(UInt8(s.4 & 0xFF))
-        buffer.append(UInt8(s.5 >> 8)); buffer.append(UInt8(s.5 & 0xFF))
-        buffer.append(UInt8(s.6 >> 8)); buffer.append(UInt8(s.6 & 0xFF))
-        buffer.append(UInt8(s.7 >> 8)); buffer.append(UInt8(s.7 & 0xFF))
+        // Network byte order (big-endian): UInt16 segments serialize via the
+        // Byte-primary BinaryInteger.bytes(endianness:) — returns [Byte].
+        buffer.append(contentsOf: s.0.bytes(endianness: .big))
+        buffer.append(contentsOf: s.1.bytes(endianness: .big))
+        buffer.append(contentsOf: s.2.bytes(endianness: .big))
+        buffer.append(contentsOf: s.3.bytes(endianness: .big))
+        buffer.append(contentsOf: s.4.bytes(endianness: .big))
+        buffer.append(contentsOf: s.5.bytes(endianness: .big))
+        buffer.append(contentsOf: s.6.bytes(endianness: .big))
+        buffer.append(contentsOf: s.7.bytes(endianness: .big))
     }
 
     /// Creates an IPv6 address from 16 binary bytes in network byte order
@@ -385,14 +386,16 @@ extension RFC_4291.IPv6.Address: Binary.Serializable {
     /// - Parameter bytes: Exactly 16 bytes in network byte order (big-endian)
     /// - Throws: `Error.invalidFormat` if not exactly 16 bytes
     public init<Bytes: Collection>(binary bytes: Bytes) throws(Error)
-    where Bytes.Element == UInt8 {
+    where Bytes.Element == Byte {
         guard bytes.count == 16 else {
             throw .invalidFormat("Expected 16 bytes, got \(bytes.count)")
         }
         var iterator = bytes.makeIterator()
+        // UInt16 segments are arithmetic-domain; cross the byte-domain boundary
+        // via .underlying at the conformance boundary.
         func next16() -> UInt16 {
-            let hi = UInt16(iterator.next()!)
-            let lo = UInt16(iterator.next()!)
+            let hi = UInt16(iterator.next()!.underlying)
+            let lo = UInt16(iterator.next()!.underlying)
             return (hi << 8) | lo
         }
         self.init(

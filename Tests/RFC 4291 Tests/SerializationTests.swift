@@ -273,7 +273,7 @@ struct BinarySerializationTests {
     @Test
     func `Loopback (::1) serializes to 16 bytes with last byte = 1`() {
         let addr = RFC_4291.IPv6.Address.loopback
-        let bytes = [UInt8](addr)
+        let bytes = [Byte](addr)
         #expect(bytes.count == 16)
         #expect(bytes == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
     }
@@ -281,7 +281,7 @@ struct BinarySerializationTests {
     @Test
     func `Unspecified (::) serializes to 16 zero bytes`() {
         let addr = RFC_4291.IPv6.Address.unspecified
-        let bytes = [UInt8](addr)
+        let bytes = [Byte](addr)
         #expect(bytes.count == 16)
         #expect(bytes.allSatisfy { $0 == 0 })
     }
@@ -289,7 +289,7 @@ struct BinarySerializationTests {
     @Test
     func `2001:db8::1 serializes correctly in network byte order`() {
         let addr = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1)
-        let bytes = [UInt8](addr)
+        let bytes = [Byte](addr)
         #expect(bytes.count == 16)
         // 0x2001 = 0x20, 0x01 (big-endian)
         // 0x0db8 = 0x0d, 0xb8 (big-endian)
@@ -307,7 +307,7 @@ struct BinarySerializationTests {
     @Test
     func `Binary round-trip preserves address`() throws {
         let original = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0x85a3, 0x1234, 0x5678, 0x9abc, 0xdef0, 0x1111)
-        let bytes = [UInt8](original)
+        let bytes = [Byte](original)
         let parsed = try RFC_4291.IPv6.Address(binary: bytes)
         #expect(parsed == original)
     }
@@ -315,7 +315,7 @@ struct BinarySerializationTests {
     @Test
     func `Link-local address binary round-trip`() throws {
         let original = RFC_4291.IPv6.Address(0xfe80, 0, 0, 0, 0, 0, 0, 1)
-        let bytes = [UInt8](original)
+        let bytes = [Byte](original)
         let parsed = try RFC_4291.IPv6.Address(binary: bytes)
         #expect(parsed == original)
     }
@@ -326,7 +326,7 @@ struct BinarySerializationTests {
             _ = try RFC_4291.IPv6.Address(binary: [0, 0, 0, 0])  // Only 4 bytes
         }
         #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-            _ = try RFC_4291.IPv6.Address(binary: [UInt8](repeating: 0, count: 20))  // 20 bytes
+            _ = try RFC_4291.IPv6.Address(binary: [Byte](repeating: 0, count: 20))  // 20 bytes
         }
     }
 
@@ -336,7 +336,7 @@ struct BinarySerializationTests {
             0xAABB, 0xCCDD, 0xEEFF, 0x1122,
             0x3344, 0x5566, 0x7788, 0x99AA
         )
-        let bytes = [UInt8](addr)
+        let bytes = [Byte](addr)
         #expect(bytes == [
             0xAA, 0xBB,  // segment 0
             0xCC, 0xDD,  // segment 1
