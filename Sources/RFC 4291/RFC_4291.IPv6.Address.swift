@@ -272,20 +272,10 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
 
             var value: UInt16 = 0
             for code in part {
-                let digit: UInt16
-                if code >= ASCII.Code.`0` && code <= ASCII.Code.`9` {
-                    // audit: underlying — pending byte-arithmetic decision
-                    digit = UInt16(code.underlying &- ASCII.Code.`0`.underlying)
-                } else if code >= ASCII.Code.A && code <= ASCII.Code.F {
-                    // audit: underlying — pending byte-arithmetic decision
-                    digit = UInt16(code.underlying &- ASCII.Code.A.underlying) &+ 10
-                } else if code >= ASCII.Code.a && code <= ASCII.Code.f {
-                    // audit: underlying — pending byte-arithmetic decision
-                    digit = UInt16(code.underlying &- ASCII.Code.a.underlying) &+ 10
-                } else {
+                guard let nibble = code.hexValue else {
                     throw Error.invalidCharacter(input, code: code)
                 }
-                value = value * 16 + digit
+                value = value * 16 + UInt16(nibble)
             }
             return value
         }
