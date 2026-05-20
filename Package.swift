@@ -24,7 +24,8 @@ let package = Package(
     dependencies: [
         .package(path: "../../swift-primitives/swift-ascii-serializer-primitives"),
         .package(path: "../../swift-primitives/swift-standard-library-extensions"),
-        .package(path: "../../swift-primitives/swift-binary-primitives")
+        .package(path: "../../swift-primitives/swift-binary-primitives"),
+        .package(path: "../../swift-primitives/swift-binary-serializer-primitives")
     ],
     targets: [
         .target(
@@ -32,7 +33,8 @@ let package = Package(
             dependencies: [
                 .product(name: "ASCII Serializer Primitives", package: "swift-ascii-serializer-primitives"),
                 .product(name: "Standard Library Extensions", package: "swift-standard-library-extensions"),
-                .product(name: "Binary Primitives", package: "swift-binary-primitives")
+                .product(name: "Binary Primitives", package: "swift-binary-primitives"),
+                .product(name: "Binary Serializable Primitives", package: "swift-binary-serializer-primitives")
             ]
         ),
         .testTarget(
