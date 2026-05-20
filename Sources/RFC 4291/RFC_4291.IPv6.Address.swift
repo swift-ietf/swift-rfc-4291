@@ -239,7 +239,12 @@ extension RFC_4291.IPv6.Address: Binary.ASCII.Serializable {
         // Type-up: lift to ASCII.Code at the entry boundary so the body works
         // against ASCII.Code constants directly (RFC 4291 grammar is strict
         // ASCII; non-ASCII bytes are fail-state).
-        let arr = Array<ASCII.Code>(bytes)
+        let arr: [ASCII.Code]
+        do {
+            arr = try Array<ASCII.Code>(bytes)
+        } catch {
+            throw Error.invalidFormat(input)
+        }
 
         // Find :: compression marker position
         var doubleColonPosition: Int? = nil
