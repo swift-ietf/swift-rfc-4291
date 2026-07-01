@@ -217,7 +217,9 @@ extension RFC_4291.IPv6.Address: Binary.Parseable {
 
 // MARK: - ASCII.Parseable Conformance (RFC 4291 §2.2 text grammar)
 
-extension RFC_4291.IPv6.Address: ASCII.Parseable {}
+extension RFC_4291.IPv6.Address: ASCII.Parseable {
+    public typealias Failure = RFC_4291.IPv6.Address.Error
+}
 
 extension RFC_4291.IPv6.Address {
     /// Creates an IPv6 address from ASCII bytes in RFC 4291 §2.2 text notation.
