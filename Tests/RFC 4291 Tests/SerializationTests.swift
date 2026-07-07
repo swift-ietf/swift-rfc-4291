@@ -43,7 +43,16 @@ struct BinarySerializationTests {
 
     @Test
     func `Binary round-trip preserves address`() throws {
-        let original = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0x85a3, 0x1234, 0x5678, 0x9abc, 0xdef0, 0x1111)
+        let original = RFC_4291.IPv6.Address(
+            0x2001,
+            0x0db8,
+            0x85a3,
+            0x1234,
+            0x5678,
+            0x9abc,
+            0xdef0,
+            0x1111
+        )
         let bytes = [Byte](original)
         let parsed = try RFC_4291.IPv6.Address(binary: bytes)
         #expect(parsed == original)
@@ -70,20 +79,28 @@ struct BinarySerializationTests {
     @Test
     func `All segments serialize in network byte order`() {
         let addr = RFC_4291.IPv6.Address(
-            0xAABB, 0xCCDD, 0xEEFF, 0x1122,
-            0x3344, 0x5566, 0x7788, 0x99AA
+            0xAABB,
+            0xCCDD,
+            0xEEFF,
+            0x1122,
+            0x3344,
+            0x5566,
+            0x7788,
+            0x99AA
         )
         let bytes = [Byte](addr)
-        #expect(bytes == [
-            0xAA, 0xBB,  // segment 0
-            0xCC, 0xDD,  // segment 1
-            0xEE, 0xFF,  // segment 2
-            0x11, 0x22,  // segment 3
-            0x33, 0x44,  // segment 4
-            0x55, 0x66,  // segment 5
-            0x77, 0x88,  // segment 6
-            0x99, 0xAA,  // segment 7
-        ])
+        #expect(
+            bytes == [
+                0xAA, 0xBB,  // segment 0
+                0xCC, 0xDD,  // segment 1
+                0xEE, 0xFF,  // segment 2
+                0x11, 0x22,  // segment 3
+                0x33, 0x44,  // segment 4
+                0x55, 0x66,  // segment 5
+                0x77, 0x88,  // segment 6
+                0x99, 0xAA,  // segment 7
+            ]
+        )
     }
 }
 

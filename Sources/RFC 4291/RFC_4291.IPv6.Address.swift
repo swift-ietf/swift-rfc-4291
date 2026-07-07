@@ -18,6 +18,7 @@
 //
 // Defines the 128-bit IPv6 address structure.
 
+public import Binary_Parseable_Primitives
 // `Parseable_ASCII_Primitives` / `Binary_Parseable_Primitives` re-export a
 // `Collection` / buffer-protocol family that shadows the stdlib protocols within
 // this file's scope. Every collection-protocol reference below is therefore
@@ -26,7 +27,6 @@
 // import shadows only here). Same load-bearing re-export as IPv4.Address:306.
 // `Parseable_ASCII_Primitives` also re-exports `ASCII_Primitives` (`ASCII.Code`).
 public import Parseable_ASCII_Primitives
-public import Binary_Parseable_Primitives
 
 extension RFC_4291.IPv6 {
     /// IPv6 Address (RFC 4291)
@@ -177,8 +177,14 @@ extension RFC_4291.IPv6.Address: Binary.Serializable {
             return (hi << 8) | lo
         }
         self.init(
-            next16(), next16(), next16(), next16(),
-            next16(), next16(), next16(), next16()
+            next16(),
+            next16(),
+            next16(),
+            next16(),
+            next16(),
+            next16(),
+            next16(),
+            next16()
         )
     }
 }
@@ -207,8 +213,14 @@ extension RFC_4291.IPv6.Address: Binary.Parseable {
             let lo = UInt16(iterator.next()!.underlying)
             return (hi << 8) | lo
         }
-        let s0 = next16(), s1 = next16(), s2 = next16(), s3 = next16()
-        let s4 = next16(), s5 = next16(), s6 = next16(), s7 = next16()
+        let s0 = next16()
+        let s1 = next16()
+        let s2 = next16()
+        let s3 = next16()
+        let s4 = next16()
+        let s5 = next16()
+        let s6 = next16()
+        let s7 = next16()
         source.removeFirst(16)
 
         return RFC_4291.IPv6.Address(s0, s1, s2, s3, s4, s5, s6, s7)
@@ -264,6 +276,8 @@ extension RFC_4291.IPv6.Address {
             // (Store&Buffer-constrained) into scope, shadowing the stdlib type
             // at this explicit `Array<…>` spelling. Same qualify-the-name
             // pattern as the collection-protocol references above.
+            // swift-format-ignore: UseShorthandTypeNames
+            // swiftlint:disable:next syntactic_sugar
             arr = try Swift.Array<ASCII.Code>(bytes)
         } catch {
             throw Error.invalidFormat(input)
@@ -350,7 +364,8 @@ extension RFC_4291.IPv6.Address {
                 throw Error.tooManySegments(input)
             }
 
-            segments = beforeSegments + Swift.Array(repeating: 0, count: zerosNeeded) + afterSegments
+            segments =
+                beforeSegments + Swift.Array(repeating: 0, count: zerosNeeded) + afterSegments
         } else {
             // No compression - must have exactly 8 segments
             segments = try parseSegments(arr[...])
