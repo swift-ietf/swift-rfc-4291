@@ -270,7 +270,7 @@ extension RFC_4291.IPv6.Address {
         // against ASCII.Code constants directly (RFC 4291 grammar is strict
         // ASCII; non-ASCII bytes are fail-state).
         let arr: [ASCII.Code]
-        do {
+        do throws(ASCII.Code.Error) {
             // `Swift.Array`-qualified: `Binary_Parseable_Primitives`'s
             // load-bearing re-export brings the institute `Array`
             // (Store&Buffer-constrained) into scope, shadowing the stdlib type
