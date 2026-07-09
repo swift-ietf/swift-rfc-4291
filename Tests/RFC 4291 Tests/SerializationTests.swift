@@ -4,8 +4,9 @@ import Testing
 
 // MARK: - Binary Serialization Tests
 
+extension RFC_4291.IPv6.Address {
 @Suite("IPv6 Address Binary Serialization")
-struct BinarySerializationTests {
+struct Test {
 
     @Test
     func `Loopback (::1) serializes to 16 bytes with last byte = 1`() {
@@ -103,11 +104,13 @@ struct BinarySerializationTests {
         )
     }
 }
+}
 
 // MARK: - [FAM-012] wire + RFC 4291 §2.2 grammar-parse (this package's siblings)
 
+extension RFC_4291.IPv6.Address.Test {
 @Suite("IPv6 Address wire and grammar parse")
-struct WireAndGrammarParseTests {
+struct WireAndGrammarParse {
 
     @Test
     func `Binary.Serializable wire form is sixteen network-order octets`() {
@@ -183,11 +186,13 @@ struct WireAndGrammarParseTests {
         }
     }
 }
+}
 
 // MARK: - [FAM-012] text-variant witness values (RFC 4291 §2.2.1 / §2.2.3)
 
+extension RFC_4291.IPv6.Address.Test {
 @Suite("IPv6 Address text-variant witness values")
-struct TextVariantWitnessTests {
+struct TextVariantWitness {
 
     @Test
     func `the .full witness value emits the fully-expanded form (RFC 4291 §2.2.1)`() {
@@ -223,4 +228,5 @@ struct TextVariantWitnessTests {
         RFC_4291.IPv6.Address.serialize(addr, into: &mixed, serializer: .ipv4Mixed)
         #expect(full != mixed)
     }
+}
 }
