@@ -197,6 +197,83 @@ extension RFC_4291.IPv6.Address.Test {
     }
 }
 
+// MARK: - RFC 4291 §2.2.3 IPv4-mixed grammar parse (fable-448 F-001 regression)
+
+extension RFC_4291.IPv6.Address.Test {
+    @Suite("IPv6 Address IPv4-mixed grammar parse")
+    struct IPv4MixedGrammarParse {
+
+        /// RFC 4291 §2.2.3: the uncompressed mixed form parses, and round-trips
+        /// through the `.ipv4Mixed` serializer witness.
+        @Test
+        func `ASCII.Parseable parses the uncompressed IPv4-mixed form and round-trips via the .ipv4Mixed witness`()
+            throws
+        {
+            let addr = try RFC_4291.IPv6.Address(
+                ascii: Array("0:0:0:0:0:ffff:192.168.1.1".utf8)
+            )
+            #expect(addr == RFC_4291.IPv6.Address(0, 0, 0, 0, 0, 0xffff, 0xc0a8, 0x0101))
+
+            var mixed: [ASCII.Code] = []
+            RFC_4291.IPv6.Address.serialize(addr, into: &mixed, serializer: .ipv4Mixed)
+            let text = String(decoding: mixed.map(\.byte), as: UTF8.self)
+            #expect(text == "0:0:0:0:0:ffff:192.168.1.1")
+            let reparsed = try RFC_4291.IPv6.Address(ascii: Array(text.utf8))
+            #expect(reparsed == addr)
+        }
+
+        /// RFC 4291 §2.2.3: the `::`-compressed mixed forms parse.
+        @Test
+        func `ASCII.Parseable parses the compressed IPv4-mixed forms`() throws {
+            #expect(
+                try RFC_4291.IPv6.Address(ascii: Array("::ffff:192.168.1.1".utf8))
+                    == RFC_4291.IPv6.Address(0, 0, 0, 0, 0, 0xffff, 0xc0a8, 0x0101)
+            )
+            #expect(
+                try RFC_4291.IPv6.Address(ascii: Array("::13.1.68.3".utf8))
+                    == RFC_4291.IPv6.Address(0, 0, 0, 0, 0, 0, 0x0d01, 0x4403)
+            )
+            #expect(
+                try RFC_4291.IPv6.Address(ascii: Array("64:ff9b::192.0.2.33".utf8))
+                    == RFC_4291.IPv6.Address(0x64, 0xff9b, 0, 0, 0, 0, 0xc000, 0x0221)
+            )
+        }
+
+        /// Malformed dotted-decimal tails are rejected, not silently misparsed.
+        @Test
+        func `ASCII.Parseable rejects malformed IPv4-mixed tails`() {
+            // Octet out of range.
+            #expect(throws: RFC_4291.IPv6.Address.Error.self) {
+                _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:256.0.0.1".utf8))
+            }
+            // Too few dotted octets.
+            #expect(throws: RFC_4291.IPv6.Address.Error.self) {
+                _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1.2.3".utf8))
+            }
+            // Too many dotted octets.
+            #expect(throws: RFC_4291.IPv6.Address.Error.self) {
+                _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1.2.3.4.5".utf8))
+            }
+            // Hex digit inside a dotted octet.
+            #expect(throws: RFC_4291.IPv6.Address.Error.self) {
+                _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1.2.3.a".utf8))
+            }
+            // Dotted tail with no leading hex groups at all.
+            #expect(throws: RFC_4291.IPv6.Address.Error.self) {
+                _ = try RFC_4291.IPv6.Address(ascii: Array("192.168.1.1".utf8))
+            }
+            // Empty octet.
+            #expect(throws: RFC_4291.IPv6.Address.Error.self) {
+                _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1..2.3".utf8))
+            }
+            // Too many total segments once the two tail segments are counted.
+            #expect(throws: RFC_4291.IPv6.Address.Error.self) {
+                _ = try RFC_4291.IPv6.Address(ascii: Array("1:2:3:4:5:6:7:1.2.3.4".utf8))
+            }
+        }
+    }
+}
+
 // MARK: - [FAM-012] text-variant witness values (RFC 4291 §2.2.1 / §2.2.3)
 
 extension RFC_4291.IPv6.Address.Test {

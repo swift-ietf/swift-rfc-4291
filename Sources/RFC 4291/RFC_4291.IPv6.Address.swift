@@ -251,6 +251,8 @@ extension RFC_4291.IPv6.Address {
     /// - Eight 16-bit segments separated by colons
     /// - Each segment is 1-4 hexadecimal digits
     /// - `::` may be used once to compress consecutive zero segments
+    /// - The trailing 32 bits may be written as dotted-decimal IPv4
+    ///   (§2.2.3, e.g. `::ffff:192.168.1.1`)
     ///
     /// ## Example
     ///
@@ -346,18 +348,68 @@ extension RFC_4291.IPv6.Address {
             return segments
         }
 
+        // Helper to parse a §2.2.3 dotted-decimal IPv4 tail (`d.d.d.d`) into
+        // the trailing two 16-bit segments.
+        func parseIPv4Tail(_ slice: Swift.ArraySlice<ASCII.Code>) throws(Error) -> [UInt16] {
+            func parseOctet(_ part: Swift.ArraySlice<ASCII.Code>) throws(Error) -> UInt16 {
+                guard !part.isEmpty, part.count <= 3 else {
+                    throw Error.invalidFormat(input)
+                }
+                var value: UInt16 = 0
+                for code in part {
+                    guard let digit = code.hexValue, digit <= 9 else {
+                        throw Error.invalidCharacter(input, code: code)
+                    }
+                    value = value * 10 + UInt16(digit)
+                }
+                guard value <= 255 else {
+                    throw Error.invalidSegment(String(decoding: part, as: UTF8.self))
+                }
+                return value
+            }
+
+            var octets: [UInt16] = []
+            var start = slice.startIndex
+            for index in slice.indices where slice[index] == ASCII.Code.period {
+                try octets.append(parseOctet(slice[start..<index]))
+                start = slice.index(after: index)
+            }
+            try octets.append(parseOctet(slice[start...]))
+
+            guard octets.count == 4 else {
+                throw Error.invalidFormat(input)
+            }
+            return [(octets[0] << 8) | octets[1], (octets[2] << 8) | octets[3]]
+        }
+
+        // §2.2.3 IPv4-mixed form: a `.` marks a dotted-decimal tail after the
+        // last colon, carrying the trailing 32 bits as two segments. The hex
+        // grammar then applies only to the part up to (and including) that
+        // last colon.
+        var ipv4Tail: [UInt16] = []
+        var hexEnd = arr.endIndex
+        if arr.contains(ASCII.Code.period) {
+            guard let lastColon = arr.lastIndex(of: ASCII.Code.colon) else {
+                throw Error.invalidFormat(input)
+            }
+            let tailStart = arr.index(after: lastColon)
+            ipv4Tail = try parseIPv4Tail(arr[tailStart...])
+            hexEnd = tailStart
+        }
+        let hexPart = arr[arr.startIndex..<hexEnd]
+
         var segments: [UInt16]
 
         if let dcPos = doubleColonPosition {
             // Has :: compression
-            let beforeDC = arr[arr.startIndex..<dcPos]
-            let afterDCStart = arr.index(dcPos, offsetBy: 2)
-            let afterDC = arr[afterDCStart..<arr.endIndex]
+            let beforeDC = hexPart[hexPart.startIndex..<dcPos]
+            let afterDCStart = hexPart.index(dcPos, offsetBy: 2)
+            let afterDC = hexPart[afterDCStart..<hexPart.endIndex]
 
             let beforeSegments = beforeDC.isEmpty ? [] : try parseSegments(beforeDC)
             let afterSegments = afterDC.isEmpty ? [] : try parseSegments(afterDC)
 
-            let totalSegments = beforeSegments.count + afterSegments.count
+            let totalSegments = beforeSegments.count + afterSegments.count + ipv4Tail.count
             let zerosNeeded = 8 - totalSegments
 
             if zerosNeeded < 0 {
@@ -366,9 +418,10 @@ extension RFC_4291.IPv6.Address {
 
             segments =
                 beforeSegments + Swift.Array(repeating: 0, count: zerosNeeded) + afterSegments
+                + ipv4Tail
         } else {
-            // No compression - must have exactly 8 segments
-            segments = try parseSegments(arr[...])
+            // No compression - must have exactly 8 segments (hex + IPv4 tail)
+            segments = try parseSegments(hexPart) + ipv4Tail
         }
 
         // Validate we have exactly 8 segments
