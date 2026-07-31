@@ -141,7 +141,7 @@ extension RFC_4291.IPv6.Address.Test {
         @Test
         func `Binary.Parseable rejects insufficient input`() {
             var source: [Byte] = [0, 0, 0, 0]  // only 4 bytes
-            #expect(throws: (any Error).self) {
+            #expect(throws: (any Swift.Error).self) {
                 _ = try RFC_4291.IPv6.Address.parse(from: &source)
             }
         }
@@ -206,7 +206,7 @@ extension RFC_4291.IPv6.Address.Test {
         /// RFC 4291 §2.2.3: the uncompressed mixed form parses, and round-trips
         /// through the `.ipv4Mixed` serializer witness.
         @Test
-        func `ASCII.Parseable parses the uncompressed IPv4-mixed form and round-trips via the .ipv4Mixed witness`()
+        func `ASCII.Parseable parses uncompressed IPv4-mixed form and round-trips via .ipv4Mixed`()
             throws
         {
             let addr = try RFC_4291.IPv6.Address(

@@ -31,16 +31,22 @@ extension RFC_4291.IPv6.Address.Error: CustomStringConvertible {
         switch self {
         case .empty:
             return "IPv6 address cannot be empty"
+
         case .invalidCharacter(let value, let code):
             return "Invalid byte 0x\(String(code, radix: 16)) in IPv6 address '\(value)'"
+
         case .invalidFormat(let value):
             return "Invalid IPv6 address format: '\(value)'"
+
         case .tooManySegments(let value):
             return "Too many segments in IPv6 address: '\(value)'"
+
         case .tooFewSegments(let value):
             return "Too few segments in IPv6 address: '\(value)'"
+
         case .invalidSegment(let value):
             return "Invalid segment in IPv6 address: '\(value)'"
+
         case .multipleCompressions(let value):
             return "Multiple :: compressions in IPv6 address: '\(value)'"
         }
