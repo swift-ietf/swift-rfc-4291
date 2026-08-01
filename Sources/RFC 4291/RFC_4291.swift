@@ -37,10 +37,3 @@
 ///
 /// Text representation (parsing and serialization) is handled by RFC 5952.
 public enum RFC_4291 {}
-
-/// IPv6 namespace
-///
-/// Contains types for IPv6 addressing
-extension RFC_4291 {
-    public enum IPv6 {}
-}

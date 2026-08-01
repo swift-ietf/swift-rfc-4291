@@ -110,7 +110,7 @@ extension RFC_4291.IPv6.Address {
 
 extension RFC_4291.IPv6.Address.Test {
     @Suite("IPv6 Address wire and grammar parse")
-    struct WireAndGrammarParse {
+    struct `Wire And Grammar Parse` {
 
         @Test
         func `Binary.Serializable wire form is sixteen network-order octets`() {
@@ -201,7 +201,7 @@ extension RFC_4291.IPv6.Address.Test {
 
 extension RFC_4291.IPv6.Address.Test {
     @Suite("IPv6 Address IPv4-mixed grammar parse")
-    struct IPv4MixedGrammarParse {
+    struct `IPv4 Mixed Grammar Parse` {
 
         /// RFC 4291 §2.2.3: the uncompressed mixed form parses, and round-trips
         /// through the `.ipv4Mixed` serializer witness.
@@ -278,7 +278,7 @@ extension RFC_4291.IPv6.Address.Test {
 
 extension RFC_4291.IPv6.Address.Test {
     @Suite("IPv6 Address text-variant witness values")
-    struct TextVariantWitness {
+    struct `Text Variant Witness` {
 
         @Test
         func `the .full witness value emits the fully-expanded form (RFC 4291 §2.2.1)`() {
