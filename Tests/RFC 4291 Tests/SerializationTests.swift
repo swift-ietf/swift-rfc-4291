@@ -109,7 +109,7 @@ extension RFC_4291.IPv6.Address {
 // MARK: - [FAM-012] wire + RFC 4291 §2.2 grammar-parse (this package's siblings)
 
 extension RFC_4291.IPv6.Address.Test {
-    @Suite("IPv6 Address wire and grammar parse")
+    @Suite
     struct `Wire And Grammar Parse` {
 
         @Test
@@ -200,7 +200,7 @@ extension RFC_4291.IPv6.Address.Test {
 // MARK: - RFC 4291 §2.2.3 IPv4-mixed grammar parse (fable-448 F-001 regression)
 
 extension RFC_4291.IPv6.Address.Test {
-    @Suite("IPv6 Address IPv4-mixed grammar parse")
+    @Suite
     struct `IPv4 Mixed Grammar Parse` {
 
         /// RFC 4291 §2.2.3: the uncompressed mixed form parses, and round-trips
@@ -277,7 +277,7 @@ extension RFC_4291.IPv6.Address.Test {
 // MARK: - [FAM-012] text-variant witness values (RFC 4291 §2.2.1 / §2.2.3)
 
 extension RFC_4291.IPv6.Address.Test {
-    @Suite("IPv6 Address text-variant witness values")
+    @Suite
     struct `Text Variant Witness` {
 
         @Test
