@@ -2,8 +2,6 @@ import Testing
 
 @testable import RFC_4291
 
-// MARK: - Binary Serialization Tests
-
 extension RFC_4291.IPv6.Address {
     @Suite("IPv6 Address Binary Serialization")
     struct Test {
@@ -29,15 +27,14 @@ extension RFC_4291.IPv6.Address {
             let addr = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1)
             let bytes = [Byte](addr)
             #expect(bytes.count == 16)
-            // 0x2001 = 0x20, 0x01 (big-endian)
-            // 0x0db8 = 0x0d, 0xb8 (big-endian)
+
             #expect(bytes[0] == 0x20)
             #expect(bytes[1] == 0x01)
             #expect(bytes[2] == 0x0d)
             #expect(bytes[3] == 0xb8)
-            // Middle zeros
+
             #expect(bytes[4...13].allSatisfy { $0 == 0 })
-            // Last segment: 0x0001
+
             #expect(bytes[14] == 0x00)
             #expect(bytes[15] == 0x01)
         }
@@ -70,10 +67,10 @@ extension RFC_4291.IPv6.Address {
         @Test
         func `Binary parsing rejects wrong byte count`() {
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(binary: [0, 0, 0, 0])  // Only 4 bytes
+                _ = try RFC_4291.IPv6.Address(binary: [0, 0, 0, 0])
             }
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(binary: [Byte](repeating: 0, count: 20))  // 20 bytes
+                _ = try RFC_4291.IPv6.Address(binary: [Byte](repeating: 0, count: 20))
             }
         }
 
@@ -92,21 +89,19 @@ extension RFC_4291.IPv6.Address {
             let bytes = [Byte](addr)
             #expect(
                 bytes == [
-                    0xAA, 0xBB,  // segment 0
-                    0xCC, 0xDD,  // segment 1
-                    0xEE, 0xFF,  // segment 2
-                    0x11, 0x22,  // segment 3
-                    0x33, 0x44,  // segment 4
-                    0x55, 0x66,  // segment 5
-                    0x77, 0x88,  // segment 6
-                    0x99, 0xAA,  // segment 7
+                    0xAA, 0xBB,
+                    0xCC, 0xDD,
+                    0xEE, 0xFF,
+                    0x11, 0x22,
+                    0x33, 0x44,
+                    0x55, 0x66,
+                    0x77, 0x88,
+                    0x99, 0xAA,
                 ]
             )
         }
     }
 }
-
-// MARK: - [FAM-012] wire + RFC 4291 §2.2 grammar-parse (this package's siblings)
 
 extension RFC_4291.IPv6.Address.Test {
     @Suite
@@ -132,31 +127,26 @@ extension RFC_4291.IPv6.Address.Test {
                 0x0370,
                 0x7334
             )
-            var source: [Byte] = original.bytes + [0xFF]  // 16 octets + a trailing byte
+            var source: [Byte] = original.bytes + [0xFF]
             let parsed = try RFC_4291.IPv6.Address.parse(from: &source)
             #expect(parsed == original)
-            #expect(source == [0xFF])  // cursor advanced past 16 bytes
+            #expect(source == [0xFF])
         }
 
         @Test
         func `Binary.Parseable rejects insufficient input`() {
-            var source: [Byte] = [0, 0, 0, 0]  // only 4 bytes
+            var source: [Byte] = [0, 0, 0, 0]
             #expect(throws: (any Swift.Error).self) {
                 _ = try RFC_4291.IPv6.Address.parse(from: &source)
             }
         }
 
-        /// RFC 4291 §2.2 grammar parse: the `::`-compressed (canonical) text form
-        /// parses to the expected segments. (Serialization back to canonical text is
-        /// RFC 5952's job and lives in `swift-rfc-5952`.)
         @Test
         func `ASCII.Parseable parses the compressed text form to segments`() throws {
             let addr = try RFC_4291.IPv6.Address(ascii: Array("2001:db8::1".utf8))
             #expect(addr == RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1))
         }
 
-        /// RFC 4291 §2.2 grammar parse: the fully-expanded (preferred) text form
-        /// parses to the same segments as its compressed equivalent.
         @Test
         func `ASCII.Parseable parses the fully-expanded text form to segments`() throws {
             let addr = try RFC_4291.IPv6.Address(
@@ -189,7 +179,7 @@ extension RFC_4291.IPv6.Address.Test {
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
                 _ = try RFC_4291.IPv6.Address(ascii: Array("".utf8))
             }
-            // Two `::` compressions are illegal.
+
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
                 _ = try RFC_4291.IPv6.Address(ascii: Array("2001::db8::1".utf8))
             }
@@ -197,14 +187,10 @@ extension RFC_4291.IPv6.Address.Test {
     }
 }
 
-// MARK: - RFC 4291 §2.2.3 IPv4-mixed grammar parse (fable-448 F-001 regression)
-
 extension RFC_4291.IPv6.Address.Test {
     @Suite
     struct `IPv4 Mixed Grammar Parse` {
 
-        /// RFC 4291 §2.2.3: the uncompressed mixed form parses, and round-trips
-        /// through the `.ipv4Mixed` serializer witness.
         @Test
         func `ASCII.Parseable parses uncompressed IPv4-mixed form and round-trips via .ipv4Mixed`()
             throws
@@ -222,7 +208,6 @@ extension RFC_4291.IPv6.Address.Test {
             #expect(reparsed == addr)
         }
 
-        /// RFC 4291 §2.2.3: the `::`-compressed mixed forms parse.
         @Test
         func `ASCII.Parseable parses the compressed IPv4-mixed forms`() throws {
             #expect(
@@ -239,42 +224,39 @@ extension RFC_4291.IPv6.Address.Test {
             )
         }
 
-        /// Malformed dotted-decimal tails are rejected, not silently misparsed.
         @Test
         func `ASCII.Parseable rejects malformed IPv4-mixed tails`() {
-            // Octet out of range.
+
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
                 _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:256.0.0.1".utf8))
             }
-            // Too few dotted octets.
+
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
                 _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1.2.3".utf8))
             }
-            // Too many dotted octets.
+
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
                 _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1.2.3.4.5".utf8))
             }
-            // Hex digit inside a dotted octet.
+
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
                 _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1.2.3.a".utf8))
             }
-            // Dotted tail with no leading hex groups at all.
+
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
                 _ = try RFC_4291.IPv6.Address(ascii: Array("192.168.1.1".utf8))
             }
-            // Empty octet.
+
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
                 _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1..2.3".utf8))
             }
-            // Too many total segments once the two tail segments are counted.
+
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
                 _ = try RFC_4291.IPv6.Address(ascii: Array("1:2:3:4:5:6:7:1.2.3.4".utf8))
             }
         }
     }
 }
-
-// MARK: - [FAM-012] text-variant witness values (RFC 4291 §2.2.1 / §2.2.3)
 
 extension RFC_4291.IPv6.Address.Test {
     @Suite
@@ -293,7 +275,7 @@ extension RFC_4291.IPv6.Address.Test {
 
         @Test
         func `the .ipv4Mixed witness value emits the dotted-decimal tail (RFC 4291 §2.2.3)`() {
-            // ::ffff:192.168.1.1 stored as segments (0,0,0,0,0,0xffff,0xc0a8,0x0101)
+
             let addr = RFC_4291.IPv6.Address(0, 0, 0, 0, 0, 0xffff, 0xc0a8, 0x0101)
             var mixed: [ASCII.Code] = []
             RFC_4291.IPv6.Address.serialize(addr, into: &mixed, serializer: .ipv4Mixed)
@@ -303,8 +285,6 @@ extension RFC_4291.IPv6.Address.Test {
             )
         }
 
-        /// The two variant witness VALUES produce distinct text forms for the same
-        /// address — the compile-time-typed, non-enum variant axis ([FAM-005]).
         @Test
         func `the full and ipv4Mixed witness values are distinct`() {
             let addr = RFC_4291.IPv6.Address(0, 0, 0, 0, 0, 0xffff, 0xc0a8, 0x0101)

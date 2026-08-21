@@ -1,109 +1,12 @@
-// ===----------------------------------------------------------------------===//
-//
-// Copyright (c) 2025 Coen ten Thije Boonkkamp
-// Licensed under Apache License v2.0
-//
-// See LICENSE.txt for license information
-// See CONTRIBUTORS.txt for the list of project contributors
-//
-// SPDX-License-Identifier: Apache-2.0
-//
-// ===----------------------------------------------------------------------===//
-
-// RFC_4291.IPv6.Address.swift
-// swift-rfc-4291
-//
-// RFC 4291: IPv6 Addressing Architecture - IPv6 Address
-// https://www.rfc-editor.org/rfc/rfc4291.html
-//
-// Defines the 128-bit IPv6 address structure.
-
 public import Binary_Parseable_Primitives
-// `Parseable_ASCII_Primitives` / `Binary_Parseable_Primitives` re-export a
-// `Collection` / buffer-protocol family that shadows the stdlib protocols within
-// this file's scope. Every collection-protocol reference below is therefore
-// `Swift.`-qualified so the shadow is harmless — qualify the name, don't isolate
-// the conformance into a separate file (principal directive; the file-scoped
-// import shadows only here). Same load-bearing re-export as IPv4.Address:306.
-// `Parseable_ASCII_Primitives` also re-exports `ASCII_Primitives` (`ASCII.Code`).
 public import Parseable_ASCII_Primitives
 
 extension RFC_4291.IPv6 {
-    /// IPv6 Address (RFC 4291)
-    ///
-    /// A 128-bit address used to identify interfaces and sets of interfaces.
-    /// IPv6 addresses are represented as eight 16-bit segments.
-    ///
-    /// ## Storage
-    ///
-    /// Internally stored as eight `UInt16` values in host byte order (each
-    /// segment as the integer it appears to be — `0x2001` is stored as the
-    /// integer `0x2001`, regardless of host endianness). Network-order bytes
-    /// are produced by `Binary.Serializable.serialize(_:into:)` at
-    /// serialization boundaries, not at the storage layer.
-    ///
-    /// ## Representations ([FAM-012] format siblings)
-    ///
-    /// This package (RFC 4291) owns the address value, its **wire** form
-    /// (`Binary.Serializable` / `Binary.Parseable`, 16 network-order bytes), and
-    /// the RFC 4291 §2.2 **text grammar** (`ASCII.Parseable` — `init(ascii:)`
-    /// accepts any §2.2 text form, including the RFC 5952 canonical form). The
-    /// RFC 4291 §2.2 non-default text *serializations* — the fully-expanded
-    /// (§2.2.1) and IPv4-mixed (§2.2.3) forms — are `Serializer.\`Protocol\``
-    /// **witness values** (`RFC_4291.IPv6.Address.Text.Full` / `.IPv4Mixed`)
-    /// passed to `serialize(_:into:serializer:)`.
-    ///
-    /// The **RFC 5952 canonical** text serialization (the default text form,
-    /// `description`, `rawValue`, `Codable`) is defined by a *different spec* and
-    /// therefore lives in `swift-rfc-5952` as a retroactive conformance
-    /// ([FAM-009] namespace-rooted placement / spec-mirroring). `ASCII.Parseable`
-    /// deliberately has no `ASCII.Serializable` peer here: the two [FAM-012]
-    /// siblings are independent — RFC 4291 owns the grammar (parse), RFC 5952
-    /// owns the canonical choice (serialize).
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// // Create from segments
-    /// let address = RFC_4291.IPv6.Address(
-    ///     0x2001, 0x0db8, 0x0000, 0x0000,
-    ///     0x0000, 0x0000, 0x0000, 0x0001
-    /// )
-    ///
-    /// let wire: [Byte] = address.bytes   // 16 network-order bytes
-    /// // Canonical "2001:db8::1" text requires `import RFC_5952`.
-    /// ```
+
     public struct Address: Sendable {
-        /// The eight 16-bit segments of the address in host byte order.
-        ///
-        /// Each segment is the integer it appears to be in the text
-        /// representation — `0x2001` is stored as the integer `0x2001`,
-        /// regardless of host endianness. Network-order bytes are produced by
-        /// `Binary.Serializable.serialize(_:into:)` at the serialization
-        /// boundary.
+
         public let segments: (UInt16, UInt16, UInt16, UInt16, UInt16, UInt16, UInt16, UInt16)
 
-        /// Creates an IPv6 address from eight 16-bit segments
-        ///
-        /// - Parameters:
-        ///   - s0: First segment (most significant)
-        ///   - s1: Second segment
-        ///   - s2: Third segment
-        ///   - s3: Fourth segment
-        ///   - s4: Fifth segment
-        ///   - s5: Sixth segment
-        ///   - s6: Seventh segment
-        ///   - s7: Eighth segment (least significant)
-        ///
-        /// ## Example
-        ///
-        /// ```swift
-        /// // 2001:db8::1
-        /// let address = RFC_4291.IPv6.Address(
-        ///     0x2001, 0x0db8, 0x0000, 0x0000,
-        ///     0x0000, 0x0000, 0x0000, 0x0001
-        /// )
-        /// ```
         public init(
             _ s0: UInt16,
             _ s1: UInt16,
@@ -117,12 +20,6 @@ extension RFC_4291.IPv6 {
             self.segments = (s0, s1, s2, s3, s4, s5, s6, s7)
         }
 
-        /// Creates IPv6 address WITHOUT validation
-        ///
-        /// **Warning**: Bypasses RFC validation. Only use for:
-        /// - Static constants
-        /// - Pre-validated values
-        /// - Internal construction after validation
         init(
             __unchecked: Void,
             _ s0: UInt16,
@@ -139,16 +36,13 @@ extension RFC_4291.IPv6 {
     }
 }
 
-// MARK: - Binary.Serializable Conformance (16-byte wire — network byte order)
-
 extension RFC_4291.IPv6.Address: Binary.Serializable {
     public static func serialize<Buffer>(
         _ address: RFC_4291.IPv6.Address,
         into buffer: inout Buffer
     ) where Buffer: Swift.RangeReplaceableCollection, Buffer.Element == Byte {
         let s = address.segments
-        // Network byte order (big-endian): UInt16 segments serialize via the
-        // Byte-primary BinaryInteger.bytes(endianness:) — returns [Byte].
+
         buffer.append(contentsOf: s.0.bytes(endianness: .big))
         buffer.append(contentsOf: s.1.bytes(endianness: .big))
         buffer.append(contentsOf: s.2.bytes(endianness: .big))
@@ -159,18 +53,13 @@ extension RFC_4291.IPv6.Address: Binary.Serializable {
         buffer.append(contentsOf: s.7.bytes(endianness: .big))
     }
 
-    /// Creates an IPv6 address from 16 binary bytes in network byte order
-    ///
-    /// - Parameter bytes: Exactly 16 bytes in network byte order (big-endian)
-    /// - Throws: `Error.invalidFormat` if not exactly 16 bytes
     public init<Bytes: Swift.Collection>(binary bytes: Bytes) throws(Error)
     where Bytes.Element == Byte {
         guard bytes.count == 16 else {
             throw .invalidFormat("Expected 16 bytes, got \(bytes.count)")
         }
         var iterator = bytes.makeIterator()
-        // UInt16 segments are arithmetic-domain; cross the byte-domain boundary
-        // via .underlying at the conformance boundary.
+
         func next16() -> UInt16 {
             let hi = UInt16(iterator.next()!.underlying)
             let lo = UInt16(iterator.next()!.underlying)
@@ -189,16 +78,8 @@ extension RFC_4291.IPv6.Address: Binary.Serializable {
     }
 }
 
-// MARK: - Binary.Parseable Conformance (16-octet wire — network byte order)
-
 extension RFC_4291.IPv6.Address: Binary.Parseable {
-    /// Parses a 16-octet IPv6 address from the front of `source` (network order).
-    ///
-    /// [FAM-012] wire sibling carrying the fixed-concrete `Binary.Parse.Failure`
-    /// (minimal-B): the binary form's only structural defect is insufficient
-    /// input — any sixteen bytes are a valid address. Consumes exactly sixteen
-    /// bytes from the front of `source` on success (cursor semantics); leaves
-    /// `source` unmodified on failure.
+
     public static func parse<Source>(
         from source: inout Source
     ) throws(Binary.Parse.Failure) -> RFC_4291.IPv6.Address
@@ -227,76 +108,37 @@ extension RFC_4291.IPv6.Address: Binary.Parseable {
     }
 }
 
-// MARK: - ASCII.Parseable Conformance (RFC 4291 §2.2 text grammar)
-
 extension RFC_4291.IPv6.Address: ASCII.Parseable {
     public typealias Failure = RFC_4291.IPv6.Address.Error
 }
 
 extension RFC_4291.IPv6.Address {
-    /// Creates an IPv6 address from ASCII bytes in RFC 4291 §2.2 text notation.
-    ///
-    /// [FAM-012] text-sibling canonical parse — the RFC 4291 §2.2 **grammar**.
-    /// Accepts the full/preferred form and the `::`-compressed form (any valid
-    /// §2.2 text, including the RFC 5952 canonical form). String parsing is
-    /// derived composition: `String → [Byte] (UTF-8) → Address`.
-    ///
-    /// This parse verb lives in RFC 4291 because RFC 4291 §2.2 owns the text
-    /// *grammar*; the RFC 5952 canonical *serialization* choice lives in
-    /// `swift-rfc-5952`. The two [FAM-012] siblings are independent.
-    ///
-    /// ## Constraints
-    ///
-    /// Per RFC 4291 Section 2.2:
-    /// - Eight 16-bit segments separated by colons
-    /// - Each segment is 1-4 hexadecimal digits
-    /// - `::` may be used once to compress consecutive zero segments
-    /// - The trailing 32 bits may be written as dotted-decimal IPv4
-    ///   (§2.2.3, e.g. `::ffff:192.168.1.1`)
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// let addr = try RFC_4291.IPv6.Address(ascii: Array<Byte>("2001:db8::1".utf8))
-    /// ```
-    ///
-    /// - Parameter bytes: ASCII bytes representing IPv6 text notation
-    /// - Throws: `Error` if the format is invalid
+
     public init<Bytes: Swift.Collection>(ascii bytes: Bytes) throws(Error)
     where Bytes.Element == Byte {
         guard !bytes.isEmpty else { throw Error.empty }
 
         let input = String(decoding: bytes, as: UTF8.self)
 
-        // Type-up: lift to ASCII.Code at the entry boundary so the body works
-        // against ASCII.Code constants directly (RFC 4291 grammar is strict
-        // ASCII; non-ASCII bytes are fail-state).
         let arr: [ASCII.Code]
         do throws(ASCII.Code.Error) {
-            // `Swift.Array`-qualified: `Binary_Parseable_Primitives`'s
-            // load-bearing re-export brings the institute `Array`
-            // (Store&Buffer-constrained) into scope, shadowing the stdlib type
-            // at this explicit `Array<…>` spelling. Same qualify-the-name
-            // pattern as the collection-protocol references above.
-            // swift-format-ignore: UseShorthandTypeNames
-            // swiftlint:disable:next syntactic_sugar
+
             arr = try Swift.Array<ASCII.Code>(bytes)
         } catch {
             throw Error.invalidFormat(input)
         }
 
-        // Find :: compression marker position
         var doubleColonPosition: Int? = nil
         var prevColonIndex: Int? = nil
 
         for index in arr.indices {
             if arr[index] == ASCII.Code.colon {
                 if let prevIdx = prevColonIndex {
-                    // Two consecutive colons - found ::
+
                     if doubleColonPosition != nil {
                         throw Error.multipleCompressions(input)
                     }
-                    // Position is at the first colon of ::
+
                     doubleColonPosition = prevIdx
                 }
                 prevColonIndex = index
@@ -305,7 +147,6 @@ extension RFC_4291.IPv6.Address {
             }
         }
 
-        // Helper to parse a hex segment
         func parseSegment(_ part: Swift.ArraySlice<ASCII.Code>) throws(Error) -> UInt16 {
             guard !part.isEmpty else {
                 throw Error.invalidFormat(input)
@@ -324,7 +165,6 @@ extension RFC_4291.IPv6.Address {
             return value
         }
 
-        // Helper to split by colon and parse segments
         func parseSegments(_ slice: Swift.ArraySlice<ASCII.Code>) throws(Error) -> [UInt16] {
             var segments: [UInt16] = []
             var start = slice.startIndex
@@ -339,7 +179,6 @@ extension RFC_4291.IPv6.Address {
                 }
             }
 
-            // Handle final segment
             if start < slice.endIndex {
                 let part = slice[start...]
                 try segments.append(parseSegment(part))
@@ -348,8 +187,6 @@ extension RFC_4291.IPv6.Address {
             return segments
         }
 
-        // Helper to parse a §2.2.3 dotted-decimal IPv4 tail (`d.d.d.d`) into
-        // the trailing two 16-bit segments.
         func parseIPv4Tail(_ slice: Swift.ArraySlice<ASCII.Code>) throws(Error) -> [UInt16] {
             func parseOctet(_ part: Swift.ArraySlice<ASCII.Code>) throws(Error) -> UInt16 {
                 guard !part.isEmpty, part.count <= 3 else {
@@ -382,10 +219,6 @@ extension RFC_4291.IPv6.Address {
             return [(octets[0] << 8) | octets[1], (octets[2] << 8) | octets[3]]
         }
 
-        // §2.2.3 IPv4-mixed form: a `.` marks a dotted-decimal tail after the
-        // last colon, carrying the trailing 32 bits as two segments. The hex
-        // grammar then applies only to the part up to (and including) that
-        // last colon.
         var ipv4Tail: [UInt16] = []
         var hexEnd = arr.endIndex
         if arr.contains(ASCII.Code.period) {
@@ -401,7 +234,7 @@ extension RFC_4291.IPv6.Address {
         var segments: [UInt16]
 
         if let dcPos = doubleColonPosition {
-            // Has :: compression
+
             let beforeDC = hexPart[hexPart.startIndex..<dcPos]
             let afterDCStart = hexPart.index(dcPos, offsetBy: 2)
             let afterDC = hexPart[afterDCStart..<hexPart.endIndex]
@@ -420,11 +253,10 @@ extension RFC_4291.IPv6.Address {
                 beforeSegments + Swift.Array(repeating: 0, count: zerosNeeded) + afterSegments
                 + ipv4Tail
         } else {
-            // No compression - must have exactly 8 segments (hex + IPv4 tail)
+
             segments = try parseSegments(hexPart) + ipv4Tail
         }
 
-        // Validate we have exactly 8 segments
         guard segments.count == 8 else {
             if segments.count < 8 {
                 throw Error.tooFewSegments(input)
@@ -446,8 +278,6 @@ extension RFC_4291.IPv6.Address {
         )
     }
 }
-
-// MARK: - Equatable & Hashable
 
 extension RFC_4291.IPv6.Address: Equatable {
     public static func == (lhs: Self, rhs: Self) -> Bool {
@@ -471,24 +301,10 @@ extension RFC_4291.IPv6.Address: Hashable {
     }
 }
 
-// MARK: - Comparable
-
 extension RFC_4291.IPv6.Address: Comparable {
-    /// Compares two IPv6 addresses numerically
-    ///
-    /// Addresses are compared segment by segment from most to least significant.
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// let addr1 = RFC_4291.IPv6.Address(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)
-    /// let addr2 = RFC_4291.IPv6.Address(0x2001, 0xdb8, 0, 0, 0, 0, 0, 2)
-    /// if addr1 < addr2 {
-    ///     print("addr1 comes before addr2")
-    /// }
-    /// ```
+
     public static func < (lhs: Self, rhs: Self) -> Bool {
-        // Compare segment by segment
+
         if lhs.segments.0 != rhs.segments.0 { return lhs.segments.0 < rhs.segments.0 }
         if lhs.segments.1 != rhs.segments.1 { return lhs.segments.1 < rhs.segments.1 }
         if lhs.segments.2 != rhs.segments.2 { return lhs.segments.2 < rhs.segments.2 }
@@ -500,16 +316,9 @@ extension RFC_4291.IPv6.Address: Comparable {
     }
 }
 
-// MARK: - Well-Known Addresses
-
 extension RFC_4291.IPv6.Address {
-    /// The unspecified address (::)
-    ///
-    /// RFC 4291 Section 2.5.2
+
     public static let unspecified = Self(__unchecked: (), 0, 0, 0, 0, 0, 0, 0, 0)
 
-    /// The loopback address (::1)
-    ///
-    /// RFC 4291 Section 2.5.3
     public static let loopback = Self(__unchecked: (), 0, 0, 0, 0, 0, 0, 0, 1)
 }

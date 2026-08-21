@@ -1,20 +1,5 @@
-// ===----------------------------------------------------------------------===//
-//
-// Copyright (c) 2025 Coen ten Thije Boonkkamp
-// Licensed under Apache License v2.0
-//
-// See LICENSE.txt for license information
-// See CONTRIBUTORS.txt for the list of project contributors
-//
-// SPDX-License-Identifier: Apache-2.0
-//
-// ===----------------------------------------------------------------------===//
-
-// RFC_4291.IPv6.Address.Error.swift
-// swift-rfc-4291
-
 extension RFC_4291.IPv6.Address {
-    /// Error type for IPv6 address parsing
+
     public enum Error: Swift.Error, Sendable, Equatable {
         case empty
         case invalidCharacter(_ value: String, code: ASCII.Code)
