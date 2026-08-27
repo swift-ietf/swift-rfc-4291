@@ -1,5 +1,5 @@
-public import Binary_Parseable_Primitives
-public import Parseable_ASCII_Primitives
+public import Binary_Parseable
+public import Parseable_ASCII
 
 extension RFC_4291.IPv6 {
 
