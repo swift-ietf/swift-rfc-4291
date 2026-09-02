@@ -1,3 +1,4 @@
+import Byte
 import Testing
 
 @testable import RFC_4291
@@ -11,7 +12,7 @@ extension RFC_4291.IPv6.Address {
             let addr = RFC_4291.IPv6.Address.loopback
             let bytes = [Byte](addr)
             #expect(bytes.count == 16)
-            #expect(bytes == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+            #expect(bytes == ([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1] as [UInt8]).map(Byte.init(bitPattern:)))
         }
 
         @Test
@@ -19,7 +20,7 @@ extension RFC_4291.IPv6.Address {
             let addr = RFC_4291.IPv6.Address.unspecified
             let bytes = [Byte](addr)
             #expect(bytes.count == 16)
-            #expect(bytes.allSatisfy { $0 == 0 })
+            #expect(bytes.allSatisfy { $0.bitPattern == 0 })
         }
 
         @Test
@@ -28,15 +29,15 @@ extension RFC_4291.IPv6.Address {
             let bytes = [Byte](addr)
             #expect(bytes.count == 16)
 
-            #expect(bytes[0] == 0x20)
-            #expect(bytes[1] == 0x01)
-            #expect(bytes[2] == 0x0d)
-            #expect(bytes[3] == 0xb8)
+            #expect(bytes[0].bitPattern == 0x20)
+            #expect(bytes[1].bitPattern == 0x01)
+            #expect(bytes[2].bitPattern == 0x0d)
+            #expect(bytes[3].bitPattern == 0xb8)
 
-            #expect(bytes[4...13].allSatisfy { $0 == 0 })
+            #expect(bytes[4...13].allSatisfy { $0.bitPattern == 0 })
 
-            #expect(bytes[14] == 0x00)
-            #expect(bytes[15] == 0x01)
+            #expect(bytes[14].bitPattern == 0x00)
+            #expect(bytes[15].bitPattern == 0x01)
         }
 
         @Test
@@ -67,10 +68,10 @@ extension RFC_4291.IPv6.Address {
         @Test
         func `Binary parsing rejects wrong byte count`() {
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(binary: [0, 0, 0, 0])
+                _ = try RFC_4291.IPv6.Address(binary: [Byte](repeating: Byte(bitPattern: 0), count: 4))
             }
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(binary: [Byte](repeating: 0, count: 20))
+                _ = try RFC_4291.IPv6.Address(binary: [Byte](repeating: Byte(bitPattern: 0), count: 20))
             }
         }
 
@@ -88,7 +89,7 @@ extension RFC_4291.IPv6.Address {
             )
             let bytes = [Byte](addr)
             #expect(
-                bytes == [
+                bytes.map(\.bitPattern) == [
                     0xAA, 0xBB,
                     0xCC, 0xDD,
                     0xEE, 0xFF,
@@ -111,8 +112,8 @@ extension RFC_4291.IPv6.Address.Test {
         func `Binary.Serializable wire form is sixteen network-order octets`() {
             let addr = RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1)
             #expect(addr.bytes.count == 16)
-            #expect(addr.bytes[0] == 0x20 && addr.bytes[1] == 0x01)
-            #expect(addr.bytes[15] == 0x01)
+            #expect(addr.bytes[0].bitPattern == 0x20 && addr.bytes[1].bitPattern == 0x01)
+            #expect(addr.bytes[15].bitPattern == 0x01)
         }
 
         @Test
@@ -127,15 +128,15 @@ extension RFC_4291.IPv6.Address.Test {
                 0x0370,
                 0x7334
             )
-            var source: [Byte] = original.bytes + [0xFF]
+            var source: [Byte] = original.bytes + [Byte(bitPattern: 0xFF)]
             let parsed = try RFC_4291.IPv6.Address.parse(from: &source)
             #expect(parsed == original)
-            #expect(source == [0xFF])
+            #expect(source == ([0xFF] as [UInt8]).map(Byte.init(bitPattern:)))
         }
 
         @Test
         func `Binary.Parseable rejects insufficient input`() {
-            var source: [Byte] = [0, 0, 0, 0]
+            var source: [Byte] = ([0, 0, 0, 0] as [UInt8]).map(Byte.init(bitPattern:))
             #expect(throws: (any Swift.Error).self) {
                 _ = try RFC_4291.IPv6.Address.parse(from: &source)
             }
@@ -143,14 +144,14 @@ extension RFC_4291.IPv6.Address.Test {
 
         @Test
         func `ASCII.Parseable parses the compressed text form to segments`() throws {
-            let addr = try RFC_4291.IPv6.Address(ascii: Array("2001:db8::1".utf8))
+            let addr = try RFC_4291.IPv6.Address(ascii: "2001:db8::1".utf8.map(Byte.init(bitPattern:)))
             #expect(addr == RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1))
         }
 
         @Test
         func `ASCII.Parseable parses the fully-expanded text form to segments`() throws {
             let addr = try RFC_4291.IPv6.Address(
-                ascii: Array("2001:0db8:0000:0000:0000:0000:0000:0001".utf8)
+                ascii: "2001:0db8:0000:0000:0000:0000:0000:0001".utf8.map(Byte.init(bitPattern:))
             )
             #expect(addr == RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1))
         }
@@ -158,15 +159,15 @@ extension RFC_4291.IPv6.Address.Test {
         @Test
         func `ASCII.Parseable parses :: at start, middle, and end`() throws {
             #expect(
-                try RFC_4291.IPv6.Address(ascii: Array("::8a2e:7334".utf8))
+                try RFC_4291.IPv6.Address(ascii: "::8a2e:7334".utf8.map(Byte.init(bitPattern:)))
                     == RFC_4291.IPv6.Address(0, 0, 0, 0, 0, 0, 0x8a2e, 0x7334)
             )
             #expect(
-                try RFC_4291.IPv6.Address(ascii: Array("2001:db8::8a2e:7334".utf8))
+                try RFC_4291.IPv6.Address(ascii: "2001:db8::8a2e:7334".utf8.map(Byte.init(bitPattern:)))
                     == RFC_4291.IPv6.Address(0x2001, 0x0db8, 0, 0, 0, 0, 0x8a2e, 0x7334)
             )
             #expect(
-                try RFC_4291.IPv6.Address(ascii: Array("2001:db8:8a2e:7334::".utf8))
+                try RFC_4291.IPv6.Address(ascii: "2001:db8:8a2e:7334::".utf8.map(Byte.init(bitPattern:)))
                     == RFC_4291.IPv6.Address(0x2001, 0x0db8, 0x8a2e, 0x7334, 0, 0, 0, 0)
             )
         }
@@ -174,14 +175,14 @@ extension RFC_4291.IPv6.Address.Test {
         @Test
         func `ASCII.Parseable rejects malformed text`() {
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(ascii: Array("not-an-address".utf8))
+                _ = try RFC_4291.IPv6.Address(ascii: "not-an-address".utf8.map(Byte.init(bitPattern:)))
             }
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(ascii: Array("".utf8))
+                _ = try RFC_4291.IPv6.Address(ascii: "".utf8.map(Byte.init(bitPattern:)))
             }
 
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(ascii: Array("2001::db8::1".utf8))
+                _ = try RFC_4291.IPv6.Address(ascii: "2001::db8::1".utf8.map(Byte.init(bitPattern:)))
             }
         }
     }
@@ -196,7 +197,7 @@ extension RFC_4291.IPv6.Address.Test {
             throws
         {
             let addr = try RFC_4291.IPv6.Address(
-                ascii: Array("0:0:0:0:0:ffff:192.168.1.1".utf8)
+                ascii: "0:0:0:0:0:ffff:192.168.1.1".utf8.map(Byte.init(bitPattern:))
             )
             #expect(addr == RFC_4291.IPv6.Address(0, 0, 0, 0, 0, 0xffff, 0xc0a8, 0x0101))
 
@@ -204,22 +205,22 @@ extension RFC_4291.IPv6.Address.Test {
             RFC_4291.IPv6.Address.serialize(addr, into: &mixed, serializer: .ipv4Mixed)
             let text = String(decoding: mixed.map(\.byte), as: UTF8.self)
             #expect(text == "0:0:0:0:0:ffff:192.168.1.1")
-            let reparsed = try RFC_4291.IPv6.Address(ascii: Array(text.utf8))
+            let reparsed = try RFC_4291.IPv6.Address(ascii: text.utf8.map(Byte.init(bitPattern:)))
             #expect(reparsed == addr)
         }
 
         @Test
         func `ASCII.Parseable parses the compressed IPv4-mixed forms`() throws {
             #expect(
-                try RFC_4291.IPv6.Address(ascii: Array("::ffff:192.168.1.1".utf8))
+                try RFC_4291.IPv6.Address(ascii: "::ffff:192.168.1.1".utf8.map(Byte.init(bitPattern:)))
                     == RFC_4291.IPv6.Address(0, 0, 0, 0, 0, 0xffff, 0xc0a8, 0x0101)
             )
             #expect(
-                try RFC_4291.IPv6.Address(ascii: Array("::13.1.68.3".utf8))
+                try RFC_4291.IPv6.Address(ascii: "::13.1.68.3".utf8.map(Byte.init(bitPattern:)))
                     == RFC_4291.IPv6.Address(0, 0, 0, 0, 0, 0, 0x0d01, 0x4403)
             )
             #expect(
-                try RFC_4291.IPv6.Address(ascii: Array("64:ff9b::192.0.2.33".utf8))
+                try RFC_4291.IPv6.Address(ascii: "64:ff9b::192.0.2.33".utf8.map(Byte.init(bitPattern:)))
                     == RFC_4291.IPv6.Address(0x64, 0xff9b, 0, 0, 0, 0, 0xc000, 0x0221)
             )
         }
@@ -228,31 +229,31 @@ extension RFC_4291.IPv6.Address.Test {
         func `ASCII.Parseable rejects malformed IPv4-mixed tails`() {
 
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:256.0.0.1".utf8))
+                _ = try RFC_4291.IPv6.Address(ascii: "::ffff:256.0.0.1".utf8.map(Byte.init(bitPattern:)))
             }
 
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1.2.3".utf8))
+                _ = try RFC_4291.IPv6.Address(ascii: "::ffff:1.2.3".utf8.map(Byte.init(bitPattern:)))
             }
 
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1.2.3.4.5".utf8))
+                _ = try RFC_4291.IPv6.Address(ascii: "::ffff:1.2.3.4.5".utf8.map(Byte.init(bitPattern:)))
             }
 
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1.2.3.a".utf8))
+                _ = try RFC_4291.IPv6.Address(ascii: "::ffff:1.2.3.a".utf8.map(Byte.init(bitPattern:)))
             }
 
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(ascii: Array("192.168.1.1".utf8))
+                _ = try RFC_4291.IPv6.Address(ascii: "192.168.1.1".utf8.map(Byte.init(bitPattern:)))
             }
 
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(ascii: Array("::ffff:1..2.3".utf8))
+                _ = try RFC_4291.IPv6.Address(ascii: "::ffff:1..2.3".utf8.map(Byte.init(bitPattern:)))
             }
 
             #expect(throws: RFC_4291.IPv6.Address.Error.self) {
-                _ = try RFC_4291.IPv6.Address(ascii: Array("1:2:3:4:5:6:7:1.2.3.4".utf8))
+                _ = try RFC_4291.IPv6.Address(ascii: "1:2:3:4:5:6:7:1.2.3.4".utf8.map(Byte.init(bitPattern:)))
             }
         }
     }

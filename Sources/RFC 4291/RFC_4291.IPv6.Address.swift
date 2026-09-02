@@ -1,5 +1,7 @@
 public import Binary_Parseable
 public import Parseable_ASCII
+public import Binary_Endianness
+public import Binary_Standard_Library_Integration
 
 extension RFC_4291.IPv6 {
 
@@ -61,8 +63,8 @@ extension RFC_4291.IPv6.Address: Binary.Serializable {
         var iterator = bytes.makeIterator()
 
         func next16() -> UInt16 {
-            let hi = UInt16(iterator.next()!.underlying)
-            let lo = UInt16(iterator.next()!.underlying)
+            let hi = UInt16(iterator.next()!.bitPattern)
+            let lo = UInt16(iterator.next()!.bitPattern)
             return (hi << 8) | lo
         }
         self.init(
@@ -90,8 +92,8 @@ extension RFC_4291.IPv6.Address: Binary.Parseable {
 
         var iterator = source.makeIterator()
         func next16() -> UInt16 {
-            let hi = UInt16(iterator.next()!.underlying)
-            let lo = UInt16(iterator.next()!.underlying)
+            let hi = UInt16(iterator.next()!.bitPattern)
+            let lo = UInt16(iterator.next()!.bitPattern)
             return (hi << 8) | lo
         }
         let s0 = next16()
@@ -120,10 +122,11 @@ extension RFC_4291.IPv6.Address {
 
         let input = String(decoding: bytes, as: UTF8.self)
 
-        let arr: [ASCII.Code]
+        var arr: [ASCII.Code] = []
         do throws(ASCII.Code.Error) {
-
-            arr = try Swift.Array<ASCII.Code>(bytes)
+            for byte in bytes {
+                try arr.append(ASCII.Code(byte))
+            }
         } catch {
             throw Error.invalidFormat(input)
         }
@@ -152,7 +155,7 @@ extension RFC_4291.IPv6.Address {
                 throw Error.invalidFormat(input)
             }
             if part.count > 4 {
-                throw Error.invalidSegment(String(decoding: part, as: UTF8.self))
+                throw Error.invalidSegment(String(decoding: part.lazy.map(\.underlying), as: UTF8.self))
             }
 
             var value: UInt16 = 0
@@ -200,7 +203,7 @@ extension RFC_4291.IPv6.Address {
                     value = value * 10 + UInt16(digit)
                 }
                 guard value <= 255 else {
-                    throw Error.invalidSegment(String(decoding: part, as: UTF8.self))
+                    throw Error.invalidSegment(String(decoding: part.lazy.map(\.underlying), as: UTF8.self))
                 }
                 return value
             }

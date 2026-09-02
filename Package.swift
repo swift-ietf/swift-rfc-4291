@@ -1,15 +1,6 @@
 // swift-tools-version: 6.4
 import PackageDescription
 
-extension String {
-    static let rfc4291 = "RFC 4291"
-    var tests: Self { "\(self) Tests" }
-}
-
-extension Target.Dependency {
-    static let rfc4291 = Self.target(name: .rfc4291)
-}
-
 let package = Package(
     name: "swift-rfc-4291",
     platforms: [
@@ -31,7 +22,7 @@ let package = Package(
             branch: "main"
         ),
         .package(
-            url: "https://github.com/swift-molecules/swift-binary.git",
+            url: "https://github.com/swift-atoms/swift-binary.git",
             branch: "main"
         ),
         .package(
@@ -59,7 +50,18 @@ let package = Package(
                     name: "Standard Library Extensions",
                     package: "swift-standard-library-extensions"
                 ),
-                .product(name: "Binary", package: "swift-binary"),
+                .product(
+                    name: "Binary",
+                    package: "swift-binary"
+                ),
+                .product(
+                    name: "Binary Endianness",
+                    package: "swift-binary"
+                ),
+                .product(
+                    name: "Binary Standard Library Integration",
+                    package: "swift-binary"
+                ),
                 .product(
                     name: "Binary Serializable",
                     package: "swift-binary-serializer"

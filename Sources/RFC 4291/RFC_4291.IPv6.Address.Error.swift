@@ -18,7 +18,7 @@ extension RFC_4291.IPv6.Address.Error: CustomStringConvertible {
             return "IPv6 address cannot be empty"
 
         case .invalidCharacter(let value, let code):
-            return "Invalid byte 0x\(String(code, radix: 16)) in IPv6 address '\(value)'"
+            return "Invalid byte 0x\(String(code.underlying, radix: 16)) in IPv6 address '\(value)'"
 
         case .invalidFormat(let value):
             return "Invalid IPv6 address format: '\(value)'"
