@@ -1,7 +1,7 @@
 public import Binary_Parseable
 public import Parseable_ASCII
-public import Binary_Endianness
-public import Binary_Standard_Library_Integration
+import Binary_Endianness
+import Binary_Standard_Library_Integration
 
 extension RFC_4291.IPv6 {
 
