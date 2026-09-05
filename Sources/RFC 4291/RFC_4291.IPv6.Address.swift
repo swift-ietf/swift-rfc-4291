@@ -1,7 +1,5 @@
-public import Binary_Parseable
-public import Parseable_ASCII
-import Binary_Endianness
-import Binary_Standard_Library_Integration
+public import Byte
+import ASCII
 
 extension RFC_4291.IPv6 {
 
@@ -38,22 +36,7 @@ extension RFC_4291.IPv6 {
     }
 }
 
-extension RFC_4291.IPv6.Address: Binary.Serializable {
-    public static func serialize<Buffer>(
-        _ address: RFC_4291.IPv6.Address,
-        into buffer: inout Buffer
-    ) where Buffer: Swift.RangeReplaceableCollection, Buffer.Element == Byte {
-        let s = address.segments
-
-        buffer.append(contentsOf: s.0.bytes(endianness: .big))
-        buffer.append(contentsOf: s.1.bytes(endianness: .big))
-        buffer.append(contentsOf: s.2.bytes(endianness: .big))
-        buffer.append(contentsOf: s.3.bytes(endianness: .big))
-        buffer.append(contentsOf: s.4.bytes(endianness: .big))
-        buffer.append(contentsOf: s.5.bytes(endianness: .big))
-        buffer.append(contentsOf: s.6.bytes(endianness: .big))
-        buffer.append(contentsOf: s.7.bytes(endianness: .big))
-    }
+extension RFC_4291.IPv6.Address {
 
     public init<Bytes: Swift.Collection>(binary bytes: Bytes) throws(Error)
     where Bytes.Element == Byte {
@@ -80,47 +63,13 @@ extension RFC_4291.IPv6.Address: Binary.Serializable {
     }
 }
 
-extension RFC_4291.IPv6.Address: Binary.Parseable {
-
-    public static func parse<Source>(
-        from source: inout Source
-    ) throws(Binary.Parse.Failure) -> RFC_4291.IPv6.Address
-    where Source: Swift.RangeReplaceableCollection, Source.Element == Byte {
-        guard source.count >= 16 else {
-            throw .insufficient(needed: 16)
-        }
-
-        var iterator = source.makeIterator()
-        func next16() -> UInt16 {
-            let hi = UInt16(iterator.next()!.bitPattern)
-            let lo = UInt16(iterator.next()!.bitPattern)
-            return (hi << 8) | lo
-        }
-        let s0 = next16()
-        let s1 = next16()
-        let s2 = next16()
-        let s3 = next16()
-        let s4 = next16()
-        let s5 = next16()
-        let s6 = next16()
-        let s7 = next16()
-        source.removeFirst(16)
-
-        return RFC_4291.IPv6.Address(s0, s1, s2, s3, s4, s5, s6, s7)
-    }
-}
-
-extension RFC_4291.IPv6.Address: ASCII.Parseable {
-    public typealias Failure = RFC_4291.IPv6.Address.Error
-}
-
 extension RFC_4291.IPv6.Address {
 
     public init<Bytes: Swift.Collection>(ascii bytes: Bytes) throws(Error)
     where Bytes.Element == Byte {
         guard !bytes.isEmpty else { throw Error.empty }
 
-        let input = String(decoding: bytes, as: UTF8.self)
+        let input = String(decoding: bytes.lazy.map(\.bitPattern), as: UTF8.self)
 
         var arr: [ASCII.Code] = []
         do throws(ASCII.Code.Error) {
@@ -172,20 +121,11 @@ extension RFC_4291.IPv6.Address {
             var segments: [UInt16] = []
             var start = slice.startIndex
 
-            for index in slice.indices {
-                if slice[index] == ASCII.Code.colon {
-                    if index > start {
-                        let part = slice[start..<index]
-                        try segments.append(parseSegment(part))
-                    }
-                    start = slice.index(after: index)
-                }
+            for index in slice.indices where slice[index] == ASCII.Code.colon {
+                try segments.append(parseSegment(slice[start..<index]))
+                start = slice.index(after: index)
             }
-
-            if start < slice.endIndex {
-                let part = slice[start...]
-                try segments.append(parseSegment(part))
-            }
+            try segments.append(parseSegment(slice[start...]))
 
             return segments
         }
@@ -230,7 +170,7 @@ extension RFC_4291.IPv6.Address {
             }
             let tailStart = arr.index(after: lastColon)
             ipv4Tail = try parseIPv4Tail(arr[tailStart...])
-            hexEnd = tailStart
+            hexEnd = lastColon
         }
         let hexPart = arr[arr.startIndex..<hexEnd]
 
@@ -239,7 +179,7 @@ extension RFC_4291.IPv6.Address {
         if let dcPos = doubleColonPosition {
 
             let beforeDC = hexPart[hexPart.startIndex..<dcPos]
-            let afterDCStart = hexPart.index(dcPos, offsetBy: 2)
+            let afterDCStart = Swift.min(hexPart.index(dcPos, offsetBy: 2), hexPart.endIndex)
             let afterDC = hexPart[afterDCStart..<hexPart.endIndex]
 
             let beforeSegments = beforeDC.isEmpty ? [] : try parseSegments(beforeDC)
@@ -248,7 +188,7 @@ extension RFC_4291.IPv6.Address {
             let totalSegments = beforeSegments.count + afterSegments.count + ipv4Tail.count
             let zerosNeeded = 8 - totalSegments
 
-            if zerosNeeded < 0 {
+            guard zerosNeeded > 0 else {
                 throw Error.tooManySegments(input)
             }
 

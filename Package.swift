@@ -1,4 +1,5 @@
 // swift-tools-version: 6.4
+
 import PackageDescription
 
 let package = Package(
@@ -10,76 +11,29 @@ let package = Package(
         .watchOS(.v27),
     ],
     products: [
-        .library(name: "RFC 4291", targets: ["RFC 4291"])
+        .library(
+            name: "RFC 4291",
+            targets: ["RFC 4291"]
+        )
     ],
     dependencies: [
-        .package(
-            url: "https://github.com/swift-molecules/swift-ascii-serializer.git",
-            branch: "main"
-        ),
-        .package(
-            url: "https://github.com/swift-atoms/swift-standard-library-extensions.git",
-            branch: "main"
-        ),
-        .package(
-            url: "https://github.com/swift-atoms/swift-binary.git",
-            branch: "main"
-        ),
-        .package(
-            url: "https://github.com/swift-molecules/swift-binary-serializer.git",
-            branch: "main"
-        ),
-        .package(
-            url: "https://github.com/swift-molecules/swift-binary-parser.git",
-            branch: "main"
-        ),
-        .package(
-            url: "https://github.com/swift-molecules/swift-ascii-parser.git",
-            branch: "main"
-        ),
+        .package(url: "https://github.com/swift-atoms/swift-ascii.git", branch: "main"),
+        .package(url: "https://github.com/swift-atoms/swift-byte.git", branch: "main"),
     ],
     targets: [
         .target(
             name: "RFC 4291",
             dependencies: [
-                .product(
-                    name: "ASCII Serializer",
-                    package: "swift-ascii-serializer"
-                ),
-                .product(
-                    name: "Standard Library Extensions",
-                    package: "swift-standard-library-extensions"
-                ),
-                .product(
-                    name: "Binary",
-                    package: "swift-binary"
-                ),
-                .product(
-                    name: "Binary Endianness",
-                    package: "swift-binary"
-                ),
-                .product(
-                    name: "Binary Standard Library Integration",
-                    package: "swift-binary"
-                ),
-                .product(
-                    name: "Binary Serializable",
-                    package: "swift-binary-serializer"
-                ),
-                .product(
-                    name: "Binary Parseable",
-                    package: "swift-binary-parser"
-                ),
-                .product(
-                    name: "Parseable ASCII",
-                    package: "swift-ascii-parser"
-                ),
+                .product(name: "ASCII", package: "swift-ascii"),
+                .product(name: "Byte", package: "swift-byte"),
             ]
         ),
         .testTarget(
             name: "RFC 4291 Tests",
             dependencies: [
-                "RFC 4291"
+                "RFC 4291",
+                .product(name: "Byte", package: "swift-byte"),
+                .product(name: "Byte Standard Library Integration", package: "swift-byte"),
             ]
         ),
     ],

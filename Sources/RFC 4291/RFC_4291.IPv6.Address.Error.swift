@@ -1,3 +1,5 @@
+public import ASCII
+
 extension RFC_4291.IPv6.Address {
 
     public enum Error: Swift.Error, Sendable, Equatable {

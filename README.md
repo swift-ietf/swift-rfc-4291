@@ -2,7 +2,7 @@
 
 ![Development Status](https://img.shields.io/badge/status-active--development-blue.svg)
 
-IPv6 address types, text representation, and scopes of RFC 4291.
+IPv6 address types, classification, and validating text and octet forms of RFC 4291. Wire coding (`Binary.Serializable`, `Binary.Parseable`, `ASCII.Parseable`, the section 2.2 text serializers and `IPv6.Address.Coder`) lives in the sibling package swift-rfc-4291-coder.
 
 ## Standard Reference
 
