@@ -33,7 +33,6 @@ let package = Package(
             dependencies: [
                 "RFC 4291",
                 .product(name: "Byte", package: "swift-byte"),
-                .product(name: "Byte Standard Library Integration", package: "swift-byte"),
             ]
         ),
     ],
