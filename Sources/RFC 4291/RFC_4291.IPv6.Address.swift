@@ -38,7 +38,7 @@ extension RFC_4291.IPv6 {
 
 extension RFC_4291.IPv6.Address {
 
-    public init<Bytes: Swift.Collection>(binary bytes: Bytes) throws(Error)
+    public init<Bytes: Swift::Collection>(binary bytes: Bytes) throws(Error)
     where Bytes.Element == Byte {
         guard bytes.count == 16 else {
             throw .invalidFormat("Expected 16 bytes, got \(bytes.count)")
@@ -65,7 +65,7 @@ extension RFC_4291.IPv6.Address {
 
 extension RFC_4291.IPv6.Address {
 
-    public init<Bytes: Swift.Collection>(ascii bytes: Bytes) throws(Error)
+    public init<Bytes: Swift::Collection>(ascii bytes: Bytes) throws(Error)
     where Bytes.Element == Byte {
         guard !bytes.isEmpty else { throw Error.empty }
 
@@ -99,7 +99,7 @@ extension RFC_4291.IPv6.Address {
             }
         }
 
-        func parseSegment(_ part: Swift.ArraySlice<ASCII.Code>) throws(Error) -> UInt16 {
+        func parseSegment(_ part: Swift::ArraySlice<ASCII.Code>) throws(Error) -> UInt16 {
             guard !part.isEmpty else {
                 throw Error.invalidFormat(input)
             }
@@ -117,7 +117,7 @@ extension RFC_4291.IPv6.Address {
             return value
         }
 
-        func parseSegments(_ slice: Swift.ArraySlice<ASCII.Code>) throws(Error) -> [UInt16] {
+        func parseSegments(_ slice: Swift::ArraySlice<ASCII.Code>) throws(Error) -> [UInt16] {
             var segments: [UInt16] = []
             var start = slice.startIndex
 
@@ -130,8 +130,8 @@ extension RFC_4291.IPv6.Address {
             return segments
         }
 
-        func parseIPv4Tail(_ slice: Swift.ArraySlice<ASCII.Code>) throws(Error) -> [UInt16] {
-            func parseOctet(_ part: Swift.ArraySlice<ASCII.Code>) throws(Error) -> UInt16 {
+        func parseIPv4Tail(_ slice: Swift::ArraySlice<ASCII.Code>) throws(Error) -> [UInt16] {
+            func parseOctet(_ part: Swift::ArraySlice<ASCII.Code>) throws(Error) -> UInt16 {
                 guard !part.isEmpty, part.count <= 3 else {
                     throw Error.invalidFormat(input)
                 }
@@ -179,7 +179,7 @@ extension RFC_4291.IPv6.Address {
         if let dcPos = doubleColonPosition {
 
             let beforeDC = hexPart[hexPart.startIndex..<dcPos]
-            let afterDCStart = Swift.min(hexPart.index(dcPos, offsetBy: 2), hexPart.endIndex)
+            let afterDCStart = Swift::min(hexPart.index(dcPos, offsetBy: 2), hexPart.endIndex)
             let afterDC = hexPart[afterDCStart..<hexPart.endIndex]
 
             let beforeSegments = beforeDC.isEmpty ? [] : try parseSegments(beforeDC)
@@ -193,7 +193,7 @@ extension RFC_4291.IPv6.Address {
             }
 
             segments =
-                beforeSegments + Swift.Array(repeating: 0, count: zerosNeeded) + afterSegments
+                beforeSegments + Swift::Array(repeating: 0, count: zerosNeeded) + afterSegments
                 + ipv4Tail
         } else {
 

@@ -2,7 +2,7 @@ public import ASCII
 
 extension RFC_4291.IPv6.Address {
 
-    public enum Error: Swift.Error, Sendable, Equatable {
+    public enum Error: Swift::Error, Sendable, Equatable {
         case empty
         case invalidCharacter(_ value: String, code: ASCII.Code)
         case invalidFormat(_ value: String)
