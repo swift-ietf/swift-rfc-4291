@@ -1,5 +1,5 @@
-public import Byte
 import ASCII
+public import Byte
 
 extension RFC_4291.IPv6 {
 
@@ -46,8 +46,11 @@ extension RFC_4291.IPv6.Address {
         var iterator = bytes.makeIterator()
 
         func next16() -> UInt16 {
-            let hi = UInt16(iterator.next()!.bitPattern)
-            let lo = UInt16(iterator.next()!.bitPattern)
+            guard let high = iterator.next(), let low = iterator.next() else {
+                preconditionFailure("The byte count was checked to be 16 before iterating")
+            }
+            let hi = UInt16(high.bitPattern)
+            let lo = UInt16(low.bitPattern)
             return (hi << 8) | lo
         }
         self.init(
@@ -200,12 +203,11 @@ extension RFC_4291.IPv6.Address {
             segments = try parseSegments(hexPart) + ipv4Tail
         }
 
-        guard segments.count == 8 else {
-            if segments.count < 8 {
-                throw Error.tooFewSegments(input)
-            } else {
-                throw Error.tooManySegments(input)
-            }
+        guard segments.count >= 8 else {
+            throw Error.tooFewSegments(input)
+        }
+        guard segments.count <= 8 else {
+            throw Error.tooManySegments(input)
         }
 
         self.init(
