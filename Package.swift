@@ -18,7 +18,8 @@ let package = Package(
         )
     ],
     traits: [
-        .trait(name: "Coder", description: "Wire coders for RFC 4291 types")
+        .trait(name: "Coder", description: "Wire coders for RFC 4291 types"),
+        .default(enabledTraits: ["Coder"]),
     ],
     dependencies: [
         .package(
